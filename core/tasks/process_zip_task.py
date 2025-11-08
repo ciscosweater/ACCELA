@@ -1,0 +1,146 @@
+import zipfile
+import re
+import os
+import logging
+from ui.assets import DEPOT_BLACKLIST
+from core.steam_api import get_depot_info_from_api
+from core.ini_parser import parse_depots_ini
+
+logger = logging.getLogger(__name__)
+
+KNOWN_DEPOT_DESCRIPTIONS = parse_depots_ini()
+
+class ProcessZipTask:
+    def _parse_lua(self, content, game_data):
+        logger.debug("Starting LUA content parsing...")
+        try:
+            all_app_matches = list(re.finditer(r'addappid\((.*?)\)(.*)', content, re.IGNORECASE))
+            if not all_app_matches:
+                raise ValueError("LUA file is invalid; no 'addappid' entries found.")
+
+            first_app_match = all_app_matches.pop(0)
+            first_app_args = first_app_match.group(1).strip()
+            game_data['appid'] = first_app_args.split(',')[0].strip()
+            
+            comment_part = first_app_match.group(2)
+            game_name_match = re.search(r'--\s*(.*)', comment_part)
+            game_data['game_name'] = game_name_match.group(1).strip() if game_name_match else f"App_{game_data['appid']}"
+
+            game_data['depots'] = {}
+            game_data['dlcs'] = {}
+            for match in all_app_matches:
+                args_str = match.group(1).strip()
+                args = [arg.strip() for arg in args_str.split(',')]
+                app_id = args[0]
+                
+                comment_part = match.group(2)
+                desc_match = re.search(r'--\s*(.*)', comment_part)
+                desc = desc_match.group(1).strip() if desc_match else f"Depot {app_id}"
+
+                if len(args) > 2 and args[2].strip('"'):
+                    depot_key = args[2].strip('"') 
+                    game_data['depots'][app_id] = {'key': depot_key, 'desc': desc}
+                else:
+                    game_data['dlcs'][app_id] = desc
+        except Exception as e:
+            logger.error(f"Critical error during LUA parsing: {e}", exc_info=True)
+            raise
+
+    def run(self, zip_path):
+        logger.info(f"Starting zip processing task for: {zip_path}")
+        game_data = {}
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                lua_files = [f for f in zip_ref.namelist() if f.endswith('.lua')]
+                if not lua_files:
+                    raise FileNotFoundError("No .lua file found in the zip archive.")
+                
+                manifest_files = {os.path.basename(f): zip_ref.read(f) for f in zip_ref.namelist() if f.endswith('.manifest')}
+                for depot_id_manifest in manifest_files:
+                    parts = depot_id_manifest.replace('.manifest', '').split('_')
+                    if len(parts) == 2:
+                        game_data.setdefault('manifests', {})[parts[0]] = parts[1]
+
+                lua_content = zip_ref.read(lua_files[0]).decode('utf-8')
+                
+                self._parse_lua(lua_content, game_data)
+                
+                if game_data.get('dlcs'):
+                    enriched_dlcs = {}
+                    for dlc_id, lua_desc in game_data['dlcs'].items():
+                        enriched_dlcs[dlc_id] = KNOWN_DEPOT_DESCRIPTIONS.get(dlc_id, lua_desc)
+                    game_data['dlcs'] = enriched_dlcs
+
+                unfiltered_depots = game_data.get('depots', {})
+                if not unfiltered_depots:
+                    logger.warning("LUA parsing did not identify any depots with keys.")
+                else:
+                    logger.info(f"LUA parsing found {len(unfiltered_depots)} depots before filtering.")
+                    
+                    string_blacklist = {str(item) for item in DEPOT_BLACKLIST}
+                    filtered_depots = {
+                        depot_id: data
+                        for depot_id, data in unfiltered_depots.items()
+                        if depot_id not in string_blacklist
+                    }
+                    if len(unfiltered_depots) > len(filtered_depots):
+                        logger.info(f"Removed {len(unfiltered_depots) - len(filtered_depots)} depots based on blacklist.")
+                    
+                    game_data['depots'] = filtered_depots
+                    
+                    if not filtered_depots:
+                        logger.warning("All depots were filtered out. No depots to download.")
+                    else:
+                        api_data = get_depot_info_from_api(game_data['appid']) if game_data.get('appid') else {}
+                        
+                        # --- MODIFICATION START ---
+                        if api_data.get('installdir'):
+                            game_data['installdir'] = api_data['installdir']
+                            logger.info(f"Found official install directory: {game_data['installdir']}")
+                        
+                        # Update game name from Steam API if available
+                        if api_data.get('game_name'):
+                            game_data['game_name'] = api_data['game_name']
+                            logger.info(f"Found game name from Steam API: {game_data['game_name']}")
+                        
+                        api_details = api_data.get('depots', {})
+                        # --- MODIFICATION END ---
+
+                        if not api_details:
+                            logger.warning("Could not retrieve supplementary details from Steam API.")
+                        
+                        enriched_depots = {}
+                        for depot_id, lua_data in filtered_depots.items():
+                            final_depot_data = {'key': lua_data['key']}
+                            details = api_details.get(str(depot_id))
+                            base_description = KNOWN_DEPOT_DESCRIPTIONS.get(depot_id, lua_data['desc'])
+                            
+                            if details:
+                                tags = []
+                                if details.get('oslist'): tags.append(f"[{details['oslist'].upper()}]")
+                                if details.get('steamdeck'): tags.append("[DECK]")
+                                if details.get('language'): base_description += f" ({details['language'].capitalize()})"
+                                final_description = ' '.join(tags) + ' ' + base_description if tags else base_description
+                            else:
+                                final_description = base_description
+
+                            lower_desc = final_description.lower()
+                            if "soundtrack" in lower_desc or re.search(r'\bost\b', lower_desc):
+                                logger.info(f"Filtering out soundtrack depot {depot_id} ('{final_description}').")
+                                continue
+
+                            final_depot_data['desc'] = final_description
+                            enriched_depots[depot_id] = final_depot_data
+                            
+                        game_data['depots'] = enriched_depots
+                
+                manifest_dir = os.path.join(os.getcwd(), 'manifest')
+                os.makedirs(manifest_dir, exist_ok=True)
+                for name, content in manifest_files.items():
+                    with open(os.path.join(manifest_dir, name), 'wb') as f: f.write(content)
+
+            logger.info("Zip processing task completed successfully.")
+            return game_data
+        except Exception as e:
+            logger.error(f"Zip processing failed: {e}", exc_info=True)
+            raise

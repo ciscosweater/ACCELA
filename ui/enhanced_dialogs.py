@@ -1,0 +1,783 @@
+import logging
+import urllib.request
+from PyQt6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
+    QLineEdit, QTextEdit, QListWidget, QListWidgetItem, QFileDialog, QMessageBox,
+    QFrame, QScrollArea, QAbstractItemView, QWidget, QComboBox
+)
+from PyQt6.QtCore import Qt, QObject, pyqtSignal, QThread, QTimer, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QPixmap, QFont
+from ui.interactions import ModernFrame, AnimatedLabel, HoverButton
+from ui.shortcuts import ShortcutHelper
+from ui.custom_checkbox import CustomCheckBox
+from utils.settings import (
+    get_settings,
+    get_steam_schema_setting, 
+    set_steam_schema_setting,
+    is_steam_schema_enabled,
+    should_auto_setup_credentials,
+    get_slssteam_setting,
+    set_slssteam_setting
+)
+
+logger = logging.getLogger(__name__)
+
+class ImageFetcher(QObject):
+    finished = pyqtSignal(bytes)
+
+    def __init__(self, url):
+        super().__init__()
+        self.url = url
+
+    def run(self):
+        try:
+            with urllib.request.urlopen(self.url) as response:
+                data = response.read()
+                self.finished.emit(data)
+        except Exception as e:
+            logger.warning(f"Failed to fetch header image from {self.url}: {e}")
+            self.finished.emit(b'')
+
+class ModernDialog(QDialog):
+    """
+    Base class for modern dialogs with enhanced styling and animations.
+    """
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._setup_modern_style()
+        self._setup_animations()
+        
+    def _setup_modern_style(self):
+        """Apply modern styling to dialog."""
+        self.setStyleSheet("""
+            QDialog {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                                          stop:0 #1E1E1E, stop:1 #282828);
+                border: 2px solid #C06C84;
+                color: #C06C84;
+            }
+            QLabel {
+                color: #C06C84;
+                font-weight: 500;
+                padding: 4px;
+            }
+            QListWidget {
+                background: rgba(40, 40, 40, 0.8);
+                border: 1px solid #C06C84;
+                padding: 4px;
+                color: #C06C84;
+            }
+            QListWidget::item {
+                padding: 8px;
+                margin: 2px;
+            }
+            QListWidget::item:selected {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                          stop:0 #C06C84, stop:1 #D07C94);
+                color: #1E1E1E;
+            }
+            QListWidget::item:hover {
+                background: rgba(192, 108, 132, 0.3);
+            }
+        """)
+        
+    def _setup_animations(self):
+        """Setup fade-in animation."""
+        self._fade_animation = QPropertyAnimation(self, b"windowOpacity")
+        self._fade_animation.setDuration(300)
+        self._fade_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        
+    def showEvent(self, a0):
+        """Trigger fade-in animation when showing dialog."""
+        super().showEvent(a0)
+        self._fade_animation.setStartValue(0.0)
+        self._fade_animation.setEndValue(1.0)
+        self._fade_animation.start()
+
+class SettingsDialog(ModernDialog):
+    """
+    Enhanced settings dialog with modern layout and better organization.
+    """
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.setFixedSize(450, 400)
+        self.settings = get_settings()
+        self._setup_ui()
+        
+        logger.debug("Opening enhanced SettingsDialog.")
+
+    def _setup_ui(self):
+        """Setup modern UI layout."""
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Title
+        title = AnimatedLabel("⚙️ Application Settings")
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #C06C84;")
+        main_layout.addWidget(title)
+        
+        # Create scroll area for settings
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background: transparent;
+            }
+            QScrollBar:vertical {
+                background: #282828;
+                width: 12px;
+            }
+            QScrollBar::handle:vertical {
+                background: #C06C84;
+                min-height: 20px;
+            }
+        """)
+        
+        scroll_widget = QWidget()
+        scroll_layout = QVBoxLayout(scroll_widget)
+        scroll_layout.setSpacing(15)
+        
+        # SLSsteam Integration Section
+        sls_frame = ModernFrame()
+        sls_layout = QVBoxLayout(sls_frame)
+        
+        sls_title = QLabel("🎮 SLSsteam Integration")
+        sls_title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        sls_layout.addWidget(sls_title)
+        
+        self.sls_auto_check_checkbox = CustomCheckBox("Auto-check SLSsteam Status")
+        self.sls_auto_check_checkbox.setChecked(bool(get_slssteam_setting("auto_check")))
+        self.sls_auto_check_checkbox.setToolTip("Automatically verify SLSsteam installation and configuration on startup.")
+        sls_layout.addWidget(self.sls_auto_check_checkbox)
+        
+        self.sls_show_warnings_checkbox = CustomCheckBox("Show SLSsteam Warnings")
+        self.sls_show_warnings_checkbox.setChecked(bool(get_slssteam_setting("show_warnings")))
+        self.sls_show_warnings_checkbox.setToolTip("Display warning notifications when SLSsteam is not properly configured.")
+        sls_layout.addWidget(self.sls_show_warnings_checkbox)
+        
+        self.sls_auto_fix_checkbox = CustomCheckBox("Auto-fix Configuration")
+        self.sls_auto_fix_checkbox.setChecked(bool(get_slssteam_setting("auto_fix_config")))
+        self.sls_auto_fix_checkbox.setToolTip("Automatically fix PlayNotOwnedGames setting without user confirmation.")
+        sls_layout.addWidget(self.sls_auto_fix_checkbox)
+        
+        # Refresh interval setting
+        interval_layout = QHBoxLayout()
+        interval_label = QLabel("Status Refresh Interval:")
+        interval_label.setStyleSheet("color: #C06C84; font-size: 11px;")
+        interval_layout.addWidget(interval_label)
+        
+        self.sls_refresh_combo = QComboBox()
+        self.sls_refresh_combo.addItems(["Disabled", "30 seconds", "60 seconds", "5 minutes"])
+        current_interval = get_slssteam_setting("refresh_interval")
+        if current_interval == 0:
+            self.sls_refresh_combo.setCurrentIndex(0)
+        elif current_interval == 30:
+            self.sls_refresh_combo.setCurrentIndex(1)
+        elif current_interval == 60:
+            self.sls_refresh_combo.setCurrentIndex(2)
+        elif current_interval == 300:
+            self.sls_refresh_combo.setCurrentIndex(3)
+        self.sls_refresh_combo.setToolTip("How often to refresh SLSsteam status (0 = disabled).")
+        interval_layout.addWidget(self.sls_refresh_combo)
+        
+        sls_layout.addLayout(interval_layout)
+        
+        scroll_layout.addWidget(sls_frame)
+        
+        # Steam Schema Section
+        schema_frame = ModernFrame()
+        schema_layout = QVBoxLayout(schema_frame)
+        
+        schema_title = QLabel("🏆 SLScheevo Schema Generator")
+        schema_title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        schema_layout.addWidget(schema_title)
+        
+        self.steam_schema_enabled_checkbox = CustomCheckBox("Enable SLScheevo Schema Generation")
+        self.steam_schema_enabled_checkbox.setChecked(bool(is_steam_schema_enabled()))
+        self.steam_schema_enabled_checkbox.setToolTip("Automatically generate achievement schemas using SLScheevo after downloading games.")
+        schema_layout.addWidget(self.steam_schema_enabled_checkbox)
+        
+        self.auto_setup_checkbox = CustomCheckBox("Auto-Setup SLScheevo Credentials")
+        self.auto_setup_checkbox.setChecked(bool(should_auto_setup_credentials()))
+        self.auto_setup_checkbox.setToolTip("Automatically configure SLScheevo login credentials for schema generation.")
+        schema_layout.addWidget(self.auto_setup_checkbox)
+        
+        # SLScheevo username setting
+        username_layout = QHBoxLayout()
+        username_label = QLabel("SLScheevo Username:")
+        username_label.setStyleSheet("color: #C06C84; font-size: 11px;")
+        username_layout.addWidget(username_label)
+        
+        self.slscheevo_username_edit = QLineEdit()
+        self.slscheevo_username_edit.setPlaceholderText("Leave empty to auto-detect")
+        self.slscheevo_username_edit.setText(self.settings.value("slscheevo_username", "", type=str))
+        self.slscheevo_username_edit.setToolTip("SLScheevo username for schema generation. Leave empty to auto-detect from saved accounts.")
+        username_layout.addWidget(self.slscheevo_username_edit)
+        
+        # Add refresh button to detect usernames
+        refresh_button = HoverButton("🔄")
+        refresh_button.setFixedSize(30, 25)
+        refresh_button.setToolTip("Detect available SLScheevo usernames")
+        refresh_button.clicked.connect(self._detect_slscheevo_usernames)
+        username_layout.addWidget(refresh_button)
+        
+        schema_layout.addLayout(username_layout)
+        
+        scroll_layout.addWidget(schema_frame)
+        
+        # DRM Removal Section
+        drm_frame = ModernFrame()
+        drm_layout = QVBoxLayout(drm_frame)
+        
+        drm_title = QLabel("🔓 DRM Removal")
+        drm_title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        drm_layout.addWidget(drm_title)
+        
+        self.steamless_enabled_checkbox = CustomCheckBox("Enable Steamless DRM Removal")
+        is_steamless_enabled = self.settings.value("steamless_enabled", True, type=bool)
+        self.steamless_enabled_checkbox.setChecked(is_steamless_enabled)
+        self.steamless_enabled_checkbox.setToolTip("Automatically remove Steam DRM from downloaded executables after download.")
+        drm_layout.addWidget(self.steamless_enabled_checkbox)
+        
+        scroll_layout.addWidget(drm_frame)
+        
+        scroll_area.setWidget(scroll_widget)
+        main_layout.addWidget(scroll_area)
+        
+        # Modern buttons
+        button_layout = QHBoxLayout()
+        
+        help_button = HoverButton("Help (F1)")
+        help_button.clicked.connect(self._show_help)
+        button_layout.addWidget(help_button)
+        
+        button_layout.addStretch()
+        
+        cancel_button = HoverButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_button)
+        
+        save_button = HoverButton("Save Settings")
+        save_button.clicked.connect(self.accept)
+        button_layout.addWidget(save_button)
+        
+        main_layout.addLayout(button_layout)
+
+    def _detect_slscheevo_usernames(self):
+        """Detect available SLScheevo usernames and show selection dialog"""
+        try:
+            # Import here to avoid circular imports
+            from core.steam_schema_integration import SteamSchemaIntegration
+            schema_integration = SteamSchemaIntegration()
+            
+            # Find SLScheevo directory
+            import os
+            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            slscheevo_dir = os.path.join(current_dir, "slscheevo_build")
+            
+            if not os.path.exists(slscheevo_dir):
+                QMessageBox.warning(self, "SLScheevo Not Found", 
+                                  "SLScheevo directory not found. Please install SLScheevo first.")
+                return
+            
+            # Get available usernames
+            usernames = schema_integration._get_available_slscheevo_usernames(slscheevo_dir)
+            
+            if not usernames:
+                QMessageBox.information(self, "No Accounts Found", 
+                                      "No SLScheevo accounts found. Please run SLScheevo manually first to set up your Steam login.")
+                return
+            
+            # Show selection dialog
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Select SLScheevo Account")
+            msg.setText("Available SLScheevo accounts found:")
+            msg.setInformativeText("Choose an account to set as default:")
+            
+            # Add buttons for each username
+            for username in usernames:
+                msg.addButton(username, QMessageBox.ButtonRole.AcceptRole)
+            
+            # Add cancel button
+            cancel_button = msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+            
+            msg.exec()
+            
+            # Get selected username
+            clicked_button = msg.clickedButton()
+            if clicked_button and clicked_button != cancel_button:
+                selected_username = clicked_button.text()
+                self.slscheevo_username_edit.setText(selected_username)
+                QMessageBox.information(self, "Username Set", 
+                                      f"SLScheevo username set to: {selected_username}")
+            
+        except Exception as e:
+            logger.error(f"Error detecting SLScheevo usernames: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to detect SLScheevo usernames: {e}")
+
+    def _show_help(self):
+        """Show settings help dialog."""
+        help_text = """
+Settings Help:
+
+🎮 SLSsteam Integration
+• Enables compatibility with SLSsteam wrapper
+• Required for Linux Steam integration
+
+🏆 Steam Schema Generator  
+• Auto-generates achievement schemas
+• Requires SLScheevo login credentials
+• Configure username or leave empty to auto-detect
+
+🔓 DRM Removal
+• Removes Steam DRM from executables
+• Makes games playable without Steam client
+
+Keyboard Shortcuts:
+F1 - Show this help
+Ctrl+S - Open Settings
+        """
+        QMessageBox.information(self, "Settings Help", help_text.strip())
+
+    def accept(self):
+        """Save settings with enhanced feedback."""
+        # Save SLSsteam settings
+        set_slssteam_setting("auto_check", self.sls_auto_check_checkbox.isChecked())
+        set_slssteam_setting("show_warnings", self.sls_show_warnings_checkbox.isChecked())
+        set_slssteam_setting("auto_fix_config", self.sls_auto_fix_checkbox.isChecked())
+        
+        # Save refresh interval
+        refresh_index = self.sls_refresh_combo.currentIndex()
+        refresh_values = [0, 30, 60, 300]  # Disabled, 30s, 60s, 5min
+        set_slssteam_setting("refresh_interval", refresh_values[refresh_index])
+        
+        logger.info("SLSsteam integration settings updated successfully.")
+        
+        # Save Steam Schema settings
+        set_steam_schema_setting("enabled", self.steam_schema_enabled_checkbox.isChecked())
+        set_steam_schema_setting("auto_setup_credentials", self.auto_setup_checkbox.isChecked())
+        
+        # Save SLScheevo username
+        slscheevo_username = self.slscheevo_username_edit.text().strip()
+        self.settings.setValue("slscheevo_username", slscheevo_username)
+        logger.info(f"SLScheevo username saved: {slscheevo_username if slscheevo_username else '(auto-detect)'}")
+        
+        # Save Steamless setting
+        self.settings.setValue("steamless_enabled", self.steamless_enabled_checkbox.isChecked())
+        logger.info(f"Steamless DRM removal setting changed to: {self.steamless_enabled_checkbox.isChecked()}")
+        
+        logger.info("Enhanced settings updated successfully.")
+        super().accept()
+
+class DepotSelectionDialog(ModernDialog):
+    """
+    Enhanced depot selection dialog with search and better UX.
+    """
+    
+    def __init__(self, app_id, depots, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Select Depots to Download")
+        self.depots = depots
+        self.setMinimumSize(500, 400)
+        self.setMaximumSize(800, 900)
+        self.resize(600, 700)
+        self._setup_ui(app_id)
+        
+    def _setup_ui(self, app_id):
+        """Setup enhanced UI with search functionality."""
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Header with image
+        self.header_label = QLabel("Loading header image...")
+        self.header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.header_label.setMinimumHeight(215)
+        self.header_label.setMaximumHeight(215)
+        self.header_label.setScaledContents(False)
+        self.header_label.setStyleSheet("""
+            QLabel {
+                border: 1px solid #C06C84;
+                background: #1E1E1E;
+            }
+        """)
+        self._fetch_header_image(app_id)
+        
+        main_layout.addWidget(self.header_label)
+        
+        # Select all/none buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        select_all_btn = HoverButton("Select All")
+        select_all_btn.clicked.connect(self._select_all)
+        button_layout.addWidget(select_all_btn)
+        
+        select_none_btn = HoverButton("Select None")
+        select_none_btn.clicked.connect(self._select_none)
+        button_layout.addWidget(select_none_btn)
+        
+        main_layout.addLayout(button_layout)
+        
+        # Create scroll area for depot list
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setMinimumHeight(200)
+        scroll_area.setMaximumHeight(400)
+        
+        # Depot list
+        self.list_widget = QListWidget()
+        self.list_widget.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self.list_widget.setResizeMode(QListWidget.ResizeMode.Adjust)
+        # Enable checkbox clicking using itemClicked signal for immediate response
+        self.list_widget.itemClicked.connect(self._on_item_clicked)
+        
+        # Set better styling for list items to prevent overlap
+        self.list_widget.setStyleSheet("""
+            QListWidget {
+                background: #282828;
+                border: 1px solid #404040;
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QListWidget::item {
+                background: #333333;
+                border: 1px solid #505050;
+                border-radius: 4px;
+                padding: 8px;
+                margin: 2px;
+                min-height: 32px;
+                color: #C06C84;
+            }
+            QListWidget::item:hover {
+                background: #3A3A3A;
+                border: 1px solid #C06C84;
+            }
+            QListWidget::item:selected {
+                background: #C06C84;
+                color: #FFFFFF;
+            }
+        """)
+        
+        # Calculate optimal height based on number of depots
+        depot_count = len(self.depots)
+        optimal_height = min(400, max(200, depot_count * 40 + 20))  # 40px per item + padding
+        self.list_widget.setMinimumHeight(optimal_height)
+        
+        for depot_id, depot_data in self.depots.items():
+            item_text = f"{depot_id} - {depot_data['desc']}"
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.ItemDataRole.UserRole, depot_id)
+            item.setCheckState(Qt.CheckState.Unchecked)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            # Set proper size hint to prevent overlap
+            from PyQt6.QtCore import QSize
+            item.setSizeHint(QSize(-1, 36))  # Fixed height of 36px per item
+            self.list_widget.addItem(item)
+        
+        scroll_area.setWidget(self.list_widget)
+        main_layout.addWidget(scroll_area)
+        
+        # Status label
+        self.status_label = QLabel(f"Found {len(self.depots)} depots")
+        self.status_label.setStyleSheet("color: #808080; font-style: italic;")
+        main_layout.addWidget(self.status_label)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        cancel_button = HoverButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_button)
+        
+        download_button = HoverButton("Download Selected")
+        download_button.clicked.connect(self.accept)
+        button_layout.addWidget(download_button)
+        
+        main_layout.addLayout(button_layout)
+        
+    def _select_all(self):
+        """Select all depots."""
+        if self.list_widget:
+            for i in range(self.list_widget.count()):
+                item = self.list_widget.item(i)
+                if item:
+                    item.setCheckState(Qt.CheckState.Checked)
+                
+    def _select_none(self):
+        """Deselect all depots."""
+        if self.list_widget:
+            for i in range(self.list_widget.count()):
+                item = self.list_widget.item(i)
+                if item:
+                    item.setCheckState(Qt.CheckState.Unchecked)
+    
+    def _on_item_clicked(self, item):
+        """Handle item click to toggle checkbox state."""
+        if item:
+            # Toggle the check state
+            current_state = item.checkState()
+            new_state = (Qt.CheckState.Unchecked if current_state == Qt.CheckState.Checked 
+                        else Qt.CheckState.Checked)
+            item.setCheckState(new_state)
+
+    def _on_item_changed(self, item):
+        """Handle item change events (not used but kept for compatibility)."""
+        pass
+
+    def _fetch_header_image(self, app_id):
+        """Fetches the game's header image from Steam's CDN in a background thread."""
+        url = f"https://cdn.akamai.steamstatic.com/steam/apps/{app_id}/header.jpg"
+        
+        self.image_thread = QThread()
+        self.image_fetcher = ImageFetcher(url)
+        self.image_fetcher.moveToThread(self.image_thread)
+        
+        self.image_thread.started.connect(self.image_fetcher.run)
+        self.image_fetcher.finished.connect(self.on_image_fetched)
+        
+        self.image_fetcher.finished.connect(self.image_thread.quit)
+        self.image_fetcher.finished.connect(self.image_fetcher.deleteLater)
+        self.image_thread.finished.connect(self.image_thread.deleteLater)
+        
+        self.image_thread.start()
+
+    def on_image_fetched(self, image_data):
+        """Slot to handle the fetched image data."""
+        if image_data:
+            pixmap = QPixmap()
+            pixmap.loadFromData(image_data)
+            # Scale while maintaining aspect ratio, fit within 460x215
+            scaled_pixmap = pixmap.scaled(460, 215, Qt.AspectRatioMode.KeepAspectRatio, 
+                                        Qt.TransformationMode.SmoothTransformation)
+            self.header_label.setPixmap(scaled_pixmap)
+        else:
+            self.header_label.setText("📷 Header image not available.")
+
+    def get_selected_depots(self):
+        """Get list of selected depot IDs."""
+        selected = []
+        if self.list_widget:
+            for i in range(self.list_widget.count()):
+                item = self.list_widget.item(i)
+                if item and item.checkState() == Qt.CheckState.Checked:
+                    depot_id = item.data(Qt.ItemDataRole.UserRole)
+                    selected.append(depot_id)
+        return selected
+
+class SteamLibraryDialog(ModernDialog):
+    """
+    A dialog to let the user choose from a list of found Steam library folders.
+    """
+    def __init__(self, library_paths, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Select Steam Library")
+        self.selected_path = None
+        self.setMinimumWidth(500)
+        self._setup_ui(library_paths)
+
+    def _setup_ui(self, library_paths):
+        """Setup UI for library selection."""
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Title
+        title = AnimatedLabel("📁 Select Steam Library")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #C06C84;")
+        main_layout.addWidget(title)
+        
+        # Library list
+        self.list_widget = QListWidget()
+        for path in library_paths:
+            self.list_widget.addItem(QListWidgetItem(path))
+        main_layout.addWidget(self.list_widget)
+
+        if self.list_widget.count() > 0:
+            self.list_widget.setCurrentRow(0)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        cancel_button = HoverButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_button)
+        
+        select_button = HoverButton("Select")
+        select_button.clicked.connect(self.accept)
+        button_layout.addWidget(select_button)
+        
+        main_layout.addLayout(button_layout)
+
+    def accept(self):
+        current_item = self.list_widget.currentItem()
+        if current_item:
+            self.selected_path = current_item.text()
+            logger.info(f"User selected Steam library: {self.selected_path}")
+            super().accept()
+        else:
+            QMessageBox.warning(self, "No Selection", "Please select a library folder.")
+
+    def get_selected_path(self):
+        return self.selected_path
+
+class DlcSelectionDialog(ModernDialog):
+    """
+    A dialog that allows the user to select which DLC AppIDs to add for the
+    SLSsteam wrapper.
+    """
+    def __init__(self, dlcs, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Select DLC for SLSsteam Wrapper")
+        self.dlcs = dlcs
+        self.setMinimumWidth(600)
+        self.setMinimumHeight(400)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        """Setup UI for DLC selection."""
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Title
+        title = AnimatedLabel("🎮 Select DLC")
+        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #C06C84;")
+        main_layout.addWidget(title)
+        
+        # Select all/none buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        select_all_btn = HoverButton("Select All")
+        select_all_btn.clicked.connect(self._select_all)
+        button_layout.addWidget(select_all_btn)
+        
+        select_none_btn = HoverButton("Select None")
+        select_none_btn.clicked.connect(self._select_none)
+        button_layout.addWidget(select_none_btn)
+        
+        main_layout.addLayout(button_layout)
+        
+        # Create scroll area for DLC list
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setMinimumHeight(200)
+        scroll_area.setMaximumHeight(400)
+        
+        # DLC list
+        self.list_widget = QListWidget()
+        self.list_widget.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self.list_widget.setResizeMode(QListWidget.ResizeMode.Adjust)
+        # Enable checkbox clicking using itemClicked signal for immediate response
+        self.list_widget.itemClicked.connect(self._on_item_clicked)
+        
+        # Set better styling for list items to prevent overlap
+        self.list_widget.setStyleSheet("""
+            QListWidget {
+                background: #282828;
+                border: 1px solid #404040;
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QListWidget::item {
+                background: #333333;
+                border: 1px solid #505050;
+                border-radius: 4px;
+                padding: 8px;
+                margin: 2px;
+                min-height: 32px;
+                color: #C06C84;
+            }
+            QListWidget::item:hover {
+                background: #3A3A3A;
+                border: 1px solid #C06C84;
+            }
+            QListWidget::item:selected {
+                background: #C06C84;
+                color: #FFFFFF;
+            }
+        """)
+        
+        # Calculate optimal height based on number of DLCs
+        dlc_count = len(self.dlcs)
+        optimal_height = min(400, max(200, dlc_count * 40 + 20))  # 40px per item + padding
+        self.list_widget.setMinimumHeight(optimal_height)
+        
+        for dlc_id, dlc_desc in self.dlcs.items():
+            item_text = f"{dlc_id} - {dlc_desc}"
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.ItemDataRole.UserRole, dlc_id)
+            item.setCheckState(Qt.CheckState.Checked)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            # Set proper size hint to prevent overlap
+            from PyQt6.QtCore import QSize
+            item.setSizeHint(QSize(-1, 36))  # Fixed height of 36px per item
+            self.list_widget.addItem(item)
+        
+        scroll_area.setWidget(self.list_widget)
+        main_layout.addWidget(scroll_area)
+        
+        # Status label
+        self.status_label = QLabel(f"Found {len(self.dlcs)} DLCs")
+        self.status_label.setStyleSheet("color: #808080; font-style: italic;")
+        main_layout.addWidget(self.status_label)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        cancel_button = HoverButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_button)
+        
+        add_button = HoverButton("Add Selected")
+        add_button.clicked.connect(self.accept)
+        button_layout.addWidget(add_button)
+        
+        main_layout.addLayout(button_layout)
+
+    def _on_item_clicked(self, item):
+        """Handle item click to toggle checkbox state."""
+        if item:
+            # Toggle the check state
+            current_state = item.checkState()
+            new_state = (Qt.CheckState.Unchecked if current_state == Qt.CheckState.Checked 
+                        else Qt.CheckState.Checked)
+            item.setCheckState(new_state)
+    
+    def _select_all(self):
+        """Select all DLCs."""
+        if self.list_widget:
+            for i in range(self.list_widget.count()):
+                item = self.list_widget.item(i)
+                if item:
+                    item.setCheckState(Qt.CheckState.Checked)
+                
+    def _select_none(self):
+        """Deselect all DLCs."""
+        if self.list_widget:
+            for i in range(self.list_widget.count()):
+                item = self.list_widget.item(i)
+                if item:
+                    item.setCheckState(Qt.CheckState.Unchecked)
+
+    def get_selected_dlcs(self):
+        selected = []
+        if self.list_widget:
+            for i in range(self.list_widget.count()):
+                item = self.list_widget.item(i)
+                if item and item.checkState() == Qt.CheckState.Checked:
+                    selected.append(item.data(Qt.ItemDataRole.UserRole))
+        return selected

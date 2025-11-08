@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -e  # Exit on error
+
+# Dummy Script To Tell The Script Where It Will Be Operating In.
+cd "$(dirname "$(readlink -f "$0")")"
+SCRIPT_DIR="$(pwd)"
+
+# This Activates The Virtual Enviroment.
+if [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
+    source "$SCRIPT_DIR/.venv/bin/activate"
+else
+    echo "Error: Virtual environment not found at $SCRIPT_DIR/.venv"
+    exit 1
+fi
+
+# Function to play sound if file exists
+play_sound() {
+    local sound_file="$1"
+    if [ -f "$sound_file" ]; then
+        aplay "$sound_file" 2>/dev/null || echo "Warning: Could not play $sound_file"
+    fi
+}
+
+# Check if a zip file was provided as argument
+if [ $# -gt 0 ]; then
+    ZIP_FILE="$1"
+    # Check if the file exists and is a zip file
+    if [ -f "$ZIP_FILE" ] && [[ "$ZIP_FILE" == *.zip ]]; then
+        echo "Processing zip file: $ZIP_FILE"
+play_sound "$SCRIPT_DIR/audio/sfx/etw.wav"
+        python "$SCRIPT_DIR/main.py" "$ZIP_FILE"
+play_sound "$SCRIPT_DIR/audio/sfx/lal.wav"
+    else
+        echo "Error: File '$ZIP_FILE' does not exist or is not a zip file."
+        echo "Usage: ACCELA [zip_file]"
+        exit 1
+    fi
+else
+    # No zip file provided, run normally
+play_sound "$SCRIPT_DIR/audio/sfx/etw.wav"
+    python "$SCRIPT_DIR/main.py"
+play_sound "$SCRIPT_DIR/audio/sfx/lal.wav"
+fi

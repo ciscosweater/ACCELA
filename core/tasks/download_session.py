@@ -1,0 +1,193 @@
+"""
+Download Session - Modelo de dados para persistência de estado de downloads
+"""
+import json
+import os
+from enum import Enum
+from dataclasses import dataclass, asdict
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class DownloadState(Enum):
+    """Estados possíveis de um download"""
+    IDLE = "idle"
+    DOWNLOADING = "downloading"
+    PAUSED = "paused"
+    CANCELLING = "cancelling"
+    CANCELLED = "cancelled"
+    COMPLETED = "completed"
+    ERROR = "error"
+
+
+@dataclass
+class DownloadSession:
+    """Armazena estado persistente de download"""
+    session_id: str
+    game_data: Dict[str, Any]
+    selected_depots: List[str]
+    current_depot_index: int
+    completed_depots: List[str]
+    download_state: DownloadState
+    timestamp: datetime
+    dest_path: str = ""
+    total_size: int = 0
+    downloaded_size: int = 0
+    error_message: str = ""
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Converte para dicionário serializável"""
+        return {
+            "session_id": self.session_id,
+            "game_data": self.game_data,
+            "selected_depots": self.selected_depots,
+            "current_depot_index": self.current_depot_index,
+            "completed_depots": self.completed_depots,
+            "download_state": self.download_state.value,
+            "timestamp": self.timestamp.isoformat(),
+            "dest_path": self.dest_path,
+            "total_size": self.total_size,
+            "downloaded_size": self.downloaded_size,
+            "error_message": self.error_message
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'DownloadSession':
+        """Cria instância a partir de dicionário"""
+        return cls(
+            session_id=data["session_id"],
+            game_data=data["game_data"],
+            selected_depots=data["selected_depots"],
+            current_depot_index=data["current_depot_index"],
+            completed_depots=data["completed_depots"],
+            download_state=DownloadState(data["download_state"]),
+            timestamp=datetime.fromisoformat(data["timestamp"]),
+            dest_path=data.get("dest_path", ""),
+            total_size=data.get("total_size", 0),
+            downloaded_size=data.get("downloaded_size", 0),
+            error_message=data.get("error_message", "")
+        )
+    
+    def save(self):
+        """Salva sessão em arquivo"""
+        try:
+            sessions = DownloadSession.load_all_sessions()
+            sessions[self.session_id] = self.to_dict()
+            
+            # Garantir que diretório existe
+            os.makedirs("data/sessions", exist_ok=True)
+            
+            with open("data/sessions/download_sessions.json", 'w') as f:
+                json.dump(sessions, f, indent=2)
+            
+            logger.debug(f"Session {self.session_id} saved successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to save session {self.session_id}: {e}")
+    
+    @classmethod
+    def load_session(cls, session_id: str) -> Optional['DownloadSession']:
+        """Carrega sessão específica"""
+        try:
+            sessions = cls.load_all_sessions()
+            if session_id in sessions:
+                return cls.from_dict(sessions[session_id])
+        except Exception as e:
+            logger.error(f"Failed to load session {session_id}: {e}")
+        return None
+    
+    @classmethod
+    def load_all_sessions(cls) -> Dict[str, Dict[str, Any]]:
+        """Carrega todas as sessões"""
+        try:
+            if os.path.exists("data/sessions/download_sessions.json"):
+                with open("data/sessions/download_sessions.json", 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load sessions: {e}")
+        return {}
+    
+    @classmethod
+    def delete_session(cls, session_id: str):
+        """Remove sessão salva"""
+        try:
+            sessions = cls.load_all_sessions()
+            if session_id in sessions:
+                del sessions[session_id]
+                
+                os.makedirs("data/sessions", exist_ok=True)
+                with open("data/sessions/download_sessions.json", 'w') as f:
+                    json.dump(sessions, f, indent=2)
+                
+                logger.debug(f"Session {session_id} deleted")
+        except Exception as e:
+            logger.error(f"Failed to delete session {session_id}: {e}")
+    
+    @classmethod
+    def cleanup_old_sessions(cls, days: int = 7):
+        """Remove sessões antigas (padrão: 7 dias)"""
+        try:
+            sessions = cls.load_all_sessions()
+            cutoff_date = datetime.now().timestamp() - (days * 24 * 3600)
+            
+            to_delete = []
+            for session_id, session_data in sessions.items():
+                session_timestamp = datetime.fromisoformat(session_data["timestamp"]).timestamp()
+                if session_timestamp < cutoff_date:
+                    to_delete.append(session_id)
+            
+            for session_id in to_delete:
+                cls.delete_session(session_id)
+            
+            if to_delete:
+                logger.info(f"Cleaned up {len(to_delete)} old sessions")
+                
+        except Exception as e:
+            logger.error(f"Failed to cleanup old sessions: {e}")
+    
+    def get_progress_percentage(self) -> float:
+        """Calcula porcentagem de progresso"""
+        if not self.selected_depots:
+            return 0.0
+        
+        completed = len(self.completed_depots)
+        total = len(self.selected_depots)
+        
+        if total == 0:
+            return 0.0
+        
+        return (completed / total) * 100.0
+    
+    def get_current_depot(self) -> Optional[str]:
+        """Retorna depot atual sendo baixado"""
+        if (0 <= self.current_depot_index < len(self.selected_depots)):
+            return self.selected_depots[self.current_depot_index]
+        return None
+    
+    def is_completed(self) -> bool:
+        """Verifica se download está completo"""
+        return (self.download_state == DownloadState.COMPLETED and 
+                len(self.completed_depots) == len(self.selected_depots))
+    
+    def can_resume(self) -> bool:
+        """Verifica se download pode ser retomado"""
+        return (self.download_state in [DownloadState.PAUSED, DownloadState.CANCELLED] and
+                len(self.completed_depots) < len(self.selected_depots))
+    
+    def get_summary(self) -> Dict[str, Any]:
+        """Retorna resumo da sessão"""
+        return {
+            "session_id": self.session_id,
+            "game_name": self.game_data.get("name", "Unknown"),
+            "progress": self.get_progress_percentage(),
+            "current_depot": self.get_current_depot(),
+            "completed_depots": len(self.completed_depots),
+            "total_depots": len(self.selected_depots),
+            "state": self.download_state.value,
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            "can_resume": self.can_resume()
+        }
