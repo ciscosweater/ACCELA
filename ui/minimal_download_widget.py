@@ -163,6 +163,39 @@ class MinimalDownloadWidget(QWidget):
         self.resume_btn.clicked.connect(self.resume_clicked.emit)
         self.cancel_btn.clicked.connect(self.cancel_clicked.emit)
 
+    def _create_fallback_image(self):
+        """Create a fallback placeholder image when no game image is available"""
+        from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont, QPen
+        from PyQt6.QtCore import Qt, QSize
+        
+        # Create a 120x56 pixmap (same size as game_image_label)
+        pixmap = QPixmap(120, 56)
+        pixmap.fill(QColor('#2A2A2A'))  # Dark background
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Draw game controller icon
+        painter.setPen(QPen(QColor('#666666'), 2))
+        painter.setBrush(QColor('#444444'))
+        
+        # Simple controller shape
+        painter.drawRoundedRect(35, 18, 50, 20, 8, 8)
+        painter.drawRoundedRect(25, 22, 15, 12, 4, 4)
+        painter.drawRoundedRect(80, 22, 15, 12, 4, 4)
+        
+        # Draw dots for buttons
+        painter.setPen(QPen(QColor('#666666'), 1))
+        painter.setBrush(QColor('#555555'))
+        painter.drawEllipse(85, 25, 3, 3)
+        painter.drawEllipse(90, 25, 3, 3)
+        painter.drawEllipse(87, 28, 3, 3)
+        painter.drawEllipse(87, 22, 3, 3)
+        
+        painter.end()
+        
+        return pixmap
+
     def _create_control_button(self, text, button_type):
         """Create minimalist control button"""
         btn = QPushButton(text)
@@ -233,12 +266,16 @@ class MinimalDownloadWidget(QWidget):
         """Configure downloading state"""
         self.current_state = "downloading"
         
-        # Mostrar imagem do jogo se fornecida
-        if game_image:
-            self.game_image_label.setPixmap(game_image.scaled(120, 56, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation))
+        # Enhanced image handling with fallback
+        if game_image and not game_image.isNull():
+            scaled_pixmap = game_image.scaled(120, 56, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
+            self.game_image_label.setPixmap(scaled_pixmap)
             self.game_image_label.show()
         else:
-            self.game_image_label.hide()
+            # Use fallback image
+            fallback_pixmap = self._create_fallback_image()
+            self.game_image_label.setPixmap(fallback_pixmap)
+            self.game_image_label.show()
         
         # Mostrar nome do jogo se fornecido
         if game_name:
@@ -347,6 +384,39 @@ class MinimalDownloadWidget(QWidget):
     def update_status(self, message):
         """Update detailed status message - removed"""
         pass
+
+    def _create_fallback_image(self):
+        """Create a fallback placeholder image when no game image is available"""
+        from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont, QPen
+        from PyQt6.QtCore import Qt, QSize
+        
+        # Create a 120x56 pixmap (same size as game_image_label)
+        pixmap = QPixmap(120, 56)
+        pixmap.fill(QColor('#2A2A2A'))  # Dark background
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Draw game controller icon
+        painter.setPen(QPen(QColor('#666666'), 2))
+        painter.setBrush(QColor('#444444'))
+        
+        # Simple controller shape
+        painter.drawRoundedRect(35, 18, 50, 20, 8, 8)
+        painter.drawRoundedRect(25, 22, 15, 12, 4, 4)
+        painter.drawRoundedRect(80, 22, 15, 12, 4, 4)
+        
+        # Draw dots for buttons
+        painter.setPen(QPen(QColor('#666666'), 1))
+        painter.setBrush(QColor('#555555'))
+        painter.drawEllipse(85, 25, 3, 3)
+        painter.drawEllipse(90, 25, 3, 3)
+        painter.drawEllipse(87, 28, 3, 3)
+        painter.drawEllipse(87, 22, 3, 3)
+        
+        painter.end()
+        
+        return pixmap
 
     def reset(self):
         """Reset widget to initial state"""

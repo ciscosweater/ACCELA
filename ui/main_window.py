@@ -471,6 +471,11 @@ class MainWindow(QMainWindow):
         self.depot_dialog = DepotSelectionDialog(self.game_data['appid'], self.game_data['depots'], self)
         if self.depot_dialog.exec():
             selected_depots = self.depot_dialog.get_selected_depots()
+            # Store the header image from dialog for later use in download
+            dialog_image = self.depot_dialog.get_header_image()
+            if dialog_image and not dialog_image.isNull():
+                self.game_header_image = dialog_image
+                logger.debug("Stored header image from depot dialog")
             if not selected_depots:
                 self._reset_ui_state()
                 return
@@ -537,10 +542,8 @@ class MainWindow(QMainWindow):
         # Mostrar widget minimalista de download
         game_name = self.game_data.get('game_name', 'Unknown Game') if self.game_data else None
         
-        # Obter imagem do jogo do container existente
-        game_image = None
-        if hasattr(self, 'game_header_label') and self.game_header_label.pixmap():
-            game_image = self.game_header_label.pixmap()
+        # Enhanced game image retrieval with multiple fallbacks
+        game_image = self._get_game_image_for_download()
         
         self.minimal_download_widget.set_downloading_state(game_name, game_image)
         self.minimal_download_widget.setVisible(True)
@@ -566,6 +569,73 @@ class MainWindow(QMainWindow):
         else:
             self.log_output.append("❌ Falha ao iniciar download")
             self._reset_ui_state()
+
+    def _get_game_image_for_download(self):
+        """Enhanced game image retrieval with multiple fallback strategies"""
+        game_image = None
+        
+        # Strategy 1: Try to get from current game_header_label (most likely to have image)
+        if hasattr(self, 'game_header_label') and self.game_header_label.pixmap():
+            pixmap = self.game_header_label.pixmap()
+            if pixmap and not pixmap.isNull():
+                game_image = pixmap
+                logger.debug("Using image from game_header_label")
+        
+        # Strategy 2: Try from cached game_header_image
+        if not game_image and hasattr(self, 'game_header_image') and self.game_header_image:
+            if not self.game_header_image.isNull():
+                game_image = self.game_header_image
+                logger.debug("Using cached game_header_image")
+        
+        # Strategy 3: Try to get from image cache manager
+        if not game_image and self.game_data:
+            app_id = self.game_data.get('appid')
+            if app_id:
+                url = f"https://cdn.akamai.steamstatic.com/steam/apps/{app_id}/header.jpg"
+                cached_image = self.image_cache_manager.get_cached_image(str(app_id), url)
+                if cached_image and not cached_image.isNull():
+                    game_image = cached_image
+                    logger.debug("Using image from cache manager")
+        
+        # Strategy 4: Create fallback placeholder
+        if not game_image:
+            game_image = self._create_fallback_image()
+            logger.debug("Using fallback image")
+        
+        return game_image
+    
+    def _create_fallback_image(self):
+        """Create a fallback placeholder image when no game image is available"""
+        from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont, QPen
+        from PyQt6.QtCore import Qt, QSize
+        
+        # Create a 120x56 pixmap (same size as game_image_label)
+        pixmap = QPixmap(120, 56)
+        pixmap.fill(QColor('#2A2A2A'))  # Dark background
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Draw game controller icon
+        painter.setPen(QPen(QColor('#666666'), 2))
+        painter.setBrush(QColor('#444444'))
+        
+        # Simple controller shape
+        painter.drawRoundedRect(35, 18, 50, 20, 8, 8)
+        painter.drawRoundedRect(25, 22, 15, 12, 4, 4)
+        painter.drawRoundedRect(80, 22, 15, 12, 4, 4)
+        
+        # Draw dots for buttons
+        painter.setPen(QPen(QColor('#666666'), 1))
+        painter.setBrush(QColor('#555555'))
+        painter.drawEllipse(85, 25, 3, 3)
+        painter.drawEllipse(90, 25, 3, 3)
+        painter.drawEllipse(87, 28, 3, 3)
+        painter.drawEllipse(87, 22, 3, 3)
+        
+        painter.end()
+        
+        return pixmap
 
     def _load_game_image(self):
         """Load game header image using existing UI components"""
@@ -601,10 +671,20 @@ class MainWindow(QMainWindow):
 "AppState"
 {{
     "appid"         "{self.game_data['appid']}"
+    "Universe"       "1"
     "name"          "{self.game_data['game_name']}"
-    "universe"      "1"
-    "installdir"    "{install_folder_name}"
     "StateFlags"    "4"
+    "installdir"    "{install_folder_name}"
+    "LastUpdated"   "0"
+    "UpdateResult"  "0"
+    "SizeOnDisk"    "0"
+    "buildid"       "0"
+    "LastOwner"     "0"
+    "BytesToDownload"   "0"
+    "BytesDownloaded"   "0"
+    "AutoUpdateBehavior"   "0"
+    "AllowOtherDownloadsWhileRunning"   "0"
+    "ScheduledAutoUpdate"   "0"
 }}
 '''
 
@@ -767,9 +847,52 @@ class MainWindow(QMainWindow):
         self.game_header_label.setPixmap(scaled_pixmap)
     
     def _display_no_image(self):
-        """Display placeholder when no image is available"""
-        self.game_header_label.setText("📷\nNo Image")
-        self.game_header_label.setFixedSize(184, 69)  # Restore default size
+        """Display enhanced placeholder when no image is available"""
+        fallback_pixmap = self._create_fallback_image_large()
+        self.game_header_label.setPixmap(fallback_pixmap)
+        self.game_header_label.setFixedSize(184, 69)  # Steam header size
+    
+    def _create_fallback_image_large(self):
+        """Create a large fallback placeholder image for header display"""
+        from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont, QPen
+        from PyQt6.QtCore import Qt, QSize
+        
+        # Create a 184x69 pixmap (Steam header size)
+        pixmap = QPixmap(184, 69)
+        pixmap.fill(QColor('#2A2A2A'))  # Dark background
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Draw game controller icon
+        painter.setPen(QPen(QColor('#666666'), 2))
+        painter.setBrush(QColor('#444444'))
+        
+        # Simple controller shape centered
+        controller_x = 92 - 30  # Center horizontally
+        controller_y = 34 - 10  # Center vertically
+        painter.drawRoundedRect(controller_x, controller_y, 60, 20, 8, 8)
+        painter.drawRoundedRect(controller_x - 10, controller_y + 4, 20, 12, 4, 4)
+        painter.drawRoundedRect(controller_x + 50, controller_y + 4, 20, 12, 4, 4)
+        
+        # Draw dots for buttons
+        painter.setPen(QPen(QColor('#666666'), 1))
+        painter.setBrush(QColor('#555555'))
+        painter.drawEllipse(controller_x + 55, controller_y + 7, 4, 4)
+        painter.drawEllipse(controller_x + 62, controller_y + 7, 4, 4)
+        painter.drawEllipse(controller_x + 58, controller_y + 11, 4, 4)
+        painter.drawEllipse(controller_x + 58, controller_y + 3, 4, 4)
+        
+        # Add "No Image" text
+        painter.setPen(QColor('#888888'))
+        font = QFont()
+        font.setPointSize(8)
+        painter.setFont(font)
+        painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, "No Image")
+        
+        painter.end()
+        
+        return pixmap
 
     def on_game_image_fetched(self, image_data):
         """Handle fetched game header image."""

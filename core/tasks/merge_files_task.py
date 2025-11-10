@@ -58,10 +58,20 @@ class MergeFilesTask(QObject):
 "AppState"
 {{
     "appid"         "{game_data['appid']}"
+    "Universe"       "1"
     "name"          "{game_data['game_name']}"
-    "universe"      "1"
-    "installdir"    "{install_folder_name}"
     "StateFlags"    "4"
+    "installdir"    "{install_folder_name}"
+    "LastUpdated"   "0"
+    "UpdateResult"  "0"
+    "SizeOnDisk"    "0"
+    "buildid"       "0"
+    "LastOwner"     "0"
+    "BytesToDownload"   "0"
+    "BytesDownloaded"   "0"
+    "AutoUpdateBehavior"   "0"
+    "AllowOtherDownloadsWhileRunning"   "0"
+    "ScheduledAutoUpdate"   "0"
 }}
 '''
 

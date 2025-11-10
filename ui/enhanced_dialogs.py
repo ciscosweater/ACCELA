@@ -640,12 +640,19 @@ class DepotSelectionDialog(ModernDialog):
         if image_data:
             pixmap = QPixmap()
             pixmap.loadFromData(image_data)
+            # Store original pixmap for sharing with main window
+            self.original_pixmap = pixmap
             # Scale while maintaining aspect ratio, fit within 460x215
             scaled_pixmap = pixmap.scaled(460, 215, Qt.AspectRatioMode.KeepAspectRatio, 
                                         Qt.TransformationMode.SmoothTransformation)
             self.header_label.setPixmap(scaled_pixmap)
         else:
             self.header_label.setText("📷 Header image not available.")
+            self.original_pixmap = None
+    
+    def get_header_image(self):
+        """Return the original header image pixmap for sharing with main window"""
+        return getattr(self, 'original_pixmap', None)
 
     def get_selected_depots(self):
         """Get list of selected depot IDs."""
