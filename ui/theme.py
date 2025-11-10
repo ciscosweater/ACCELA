@@ -10,13 +10,13 @@ class Colors:
     
     # Primary colors (existing theme)
     PRIMARY = "#C06C84"           # Main accent color
-    PRIMARY_LIGHT = "#D07C94"     # Hover states
+    PRIMARY_LIGHT = "#D08C9C"     # Hover states (lighter)
     PRIMARY_DARK = "#A05C74"      # Pressed states
     PRIMARY_VARIANT = "#B05C74"   # Alternative primary
     
     # Secondary colors
     SECONDARY = "#6C84C0"         # Information accents
-    SECONDARY_LIGHT = "#7C94D0"   # Secondary hover
+    SECONDARY_LIGHT = "#8CA4D8"   # Secondary hover (lighter)
     SECONDARY_DARK = "#5C74B0"    # Secondary pressed
     
     # Status colors
@@ -33,28 +33,30 @@ class Colors:
     ERROR_DARK = "#A05C74"        # Error pressed
     
     # Neutral colors
-    BACKGROUND = "#1E1E1E"        # Main background
-    SURFACE = "#282828"           # Card surfaces
-    SURFACE_LIGHT = "#333333"     # Hover surfaces
-    SURFACE_DARK = "#1A1A1A"      # Dark surfaces
+    BACKGROUND = "#1A1A1A"        # Main background (slightly darker)
+    SURFACE = "#252525"           # Card surfaces (enhanced contrast)
+    SURFACE_LIGHT = "#303030"     # Hover surfaces
+    SURFACE_DARK = "#151515"      # Dark surfaces
     
-    BORDER = "#404040"            # Subtle borders
-    BORDER_LIGHT = "#505050"      # Light borders
-    BORDER_DARK = "#303030"       # Dark borders
+    # Border colors
+    BORDER = "#353535"            # Subtle borders (better contrast)
+    BORDER_LIGHT = "#454545"      # Light borders
+    BORDER_DARK = "#252525"       # Dark borders
     
     # Text colors
-    TEXT_PRIMARY = "#C06C84"      # Main text
-    TEXT_SECONDARY = "#808080"    # Secondary text
-    TEXT_DISABLED = "#505050"     # Disabled text
+    TEXT_PRIMARY = "#E8E8E8"      # Main text (lighter for better contrast)
+    TEXT_SECONDARY = "#B0B0B0"    # Secondary text (lighter)
+    TEXT_DISABLED = "#606060"     # Disabled text
     TEXT_ON_PRIMARY = "#FFFFFF"   # Text on primary backgrounds
+    TEXT_ACCENT = "#C06C84"       # Accent text (preserving original color)
     
     # Overlay colors
     OVERLAY = "rgba(30, 30, 30, 0.8)"      # Modal overlay
     OVERLAY_LIGHT = "rgba(30, 30, 30, 0.6)" # Light overlay
     
     # Glassmorphism colors (simplified for PyQt6 compatibility)
-    GLASS_SURFACE = "#282828"
-    GLASS_BORDER = "#404040"
+    GLASS_SURFACE = "#252525"
+    GLASS_BORDER = "#353535"
     
     @staticmethod
     def get_qcolor(color_hex: str) -> QColor:
@@ -148,8 +150,9 @@ class Shadows:
     
     @staticmethod
     def get_shadow(shadow: str) -> str:
-        """Generate box-shadow string"""
-        return f"box-shadow: {shadow};"
+        """Generate shadow string (PyQt6 compatible)"""
+        # PyQt6 doesn't support box-shadow, return empty string
+        return ""
 
 
 class Animations:
@@ -166,10 +169,9 @@ class Animations:
     
     @staticmethod
     def get_transition(property: str, duration: str = None, easing: str = None) -> str:
-        """Generate transition string"""
-        dur = duration or Animations.DURATION_NORMAL
-        eas = easing or Animations.EASING_EASE_OUT
-        return f"transition: {property} {dur} {eas};"
+        """Generate transition string (PyQt6 compatible)"""
+        # PyQt6 doesn't support CSS transitions, return empty string
+        return ""
 
 
 class ComponentStyles:
@@ -178,14 +180,17 @@ class ComponentStyles:
     # Modern card style
     CARD = f"""
         QFrame {{
-            background: {Colors.GLASS_SURFACE};
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {Colors.GLASS_SURFACE}, stop:1 {Colors.SURFACE});
             border: 1px solid {Colors.GLASS_BORDER};
             {BorderRadius.get_border_radius(BorderRadius.LARGE)};
             {Spacing.get_padding(Spacing.MD)};
         }}
         QFrame:hover {{
-            background: {Colors.SURFACE_LIGHT};
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {Colors.SURFACE_LIGHT}, stop:1 {Colors.SURFACE});
             border: 1px solid {Colors.BORDER_LIGHT};
+            {Shadows.get_shadow(Shadows.SUBTLE)};
         }}
     """
     
@@ -194,23 +199,29 @@ class ComponentStyles:
         QPushButton {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 {Colors.PRIMARY}, stop:1 {Colors.PRIMARY_DARK});
-            border: none;
+            border: 1px solid {Colors.PRIMARY_DARK};
             color: {Colors.TEXT_ON_PRIMARY};
             {Typography.get_font_style(Typography.BODY_SIZE, Typography.WEIGHT_BOLD)};
             {Spacing.get_padding(Spacing.SM, Spacing.MD)};
             {BorderRadius.get_border_radius(BorderRadius.MEDIUM)};
+            {Shadows.get_shadow(Shadows.SUBTLE)};
         }}
         QPushButton:hover {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 {Colors.PRIMARY_LIGHT}, stop:1 {Colors.PRIMARY});
+            border: 1px solid {Colors.PRIMARY};
+            {Shadows.get_shadow(Shadows.MEDIUM)};
         }}
         QPushButton:pressed {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 {Colors.PRIMARY_DARK}, stop:1 {Colors.PRIMARY_DARK});
+            border: 1px solid {Colors.PRIMARY_DARK};
+            {Shadows.get_shadow(Shadows.NONE)};
         }}
         QPushButton:disabled {{
-            background: {Colors.BORDER};
+            background: {Colors.SURFACE};
             color: {Colors.TEXT_DISABLED};
+            border: 1px solid {Colors.BORDER};
         }}
     """
     
@@ -237,19 +248,20 @@ class ComponentStyles:
     # Enhanced progress bar
     PROGRESS_BAR = f"""
         QProgressBar {{ 
-            max-height: 16px; 
-            border: 1px solid {Colors.PRIMARY}; 
+            max-height: 18px; 
+            border: 1px solid {Colors.BORDER}; 
             text-align: center; 
             color: {Colors.TEXT_PRIMARY}; 
             {Typography.get_font_style(Typography.CAPTION_SIZE, Typography.WEIGHT_BOLD)};
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                stop:0 {Colors.BACKGROUND}, stop:1 {Colors.SURFACE});
+                stop:0 {Colors.SURFACE}, stop:1 {Colors.BACKGROUND});
             {BorderRadius.get_border_radius(BorderRadius.SMALL)};
             {Spacing.get_padding(1)};
+            {Shadows.get_shadow(Shadows.SUBTLE)};
         }}
         QProgressBar::chunk {{ 
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
-                stop:0 {Colors.PRIMARY}, stop:0.7 {Colors.PRIMARY_LIGHT}, stop:1 {Colors.PRIMARY}); 
+                stop:0 {Colors.PRIMARY}, stop:0.5 {Colors.PRIMARY_LIGHT}, stop:1 {Colors.PRIMARY}); 
             {BorderRadius.get_border_radius(BorderRadius.SMALL)};
             {Animations.get_transition("width", Animations.DURATION_SLOW)};
         }}
@@ -306,6 +318,7 @@ class Theme:
             QLabel {{
                 color: {Colors.TEXT_PRIMARY};
                 font-size: {Typography.BODY_SIZE}px;
+                font-weight: 400;
             }}
             
             QLineEdit, QTextEdit {{
@@ -314,10 +327,17 @@ class Theme:
                 color: {Colors.TEXT_PRIMARY};
                 {BorderRadius.get_border_radius(BorderRadius.MEDIUM)};
                 {Spacing.get_padding(Spacing.SM)};
+                {Shadows.get_shadow(Shadows.SUBTLE)};
             }}
             
             QLineEdit:focus, QTextEdit:focus {{
                 border: 1px solid {Colors.PRIMARY};
+                {Shadows.get_shadow(Shadows.GLOW)};
+            }}
+            
+            QPushButton {{
+                {Animations.get_transition("background", Animations.DURATION_NORMAL)};
+                {Animations.get_transition("border", Animations.DURATION_NORMAL)};
             }}
         """)
     

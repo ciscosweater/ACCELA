@@ -20,7 +20,7 @@ requests==2.32.5
 setuptools==80.9.0
 six==1.17.0
 soupsieve==2.8
-steam==1.4.4
+steam[client]==1.4.4
 typing_extensions==4.15.0
 urllib3==2.5.0
 vdf==3.4

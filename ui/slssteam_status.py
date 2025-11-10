@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QFrame, QToolTip, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QFont, QPixmap, QPainter, QColor, QPen
+from PyQt6.QtGui import QFont, QPixmap, QPainter, QColor, QPen, QMouseEvent
 
 from core.slssteam_checker import SlssteamChecker, SlssteamStatus
 from ui.interactions import HoverButton, ModernFrame
@@ -75,6 +75,23 @@ class StatusIndicator(QLabel):
         
         painter.drawEllipse(2, 2, 12, 12)
 
+class ClickableStatusIndicator(StatusIndicator):
+    """Clickable status indicator for compact mode"""
+    
+    # Signal for click events
+    clicked = pyqtSignal()
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+    
+    def mousePressEvent(self, ev: QMouseEvent | None):
+        """Handle mouse press events"""
+        if ev is not None and ev.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        else:
+            super().mousePressEvent(ev)
+
 class SlssteamStatusWidget(ModernFrame):
     """
     SLSsteam status indicator widget for ACCELA main window.
@@ -85,8 +102,9 @@ class SlssteamStatusWidget(ModernFrame):
     # Signals
     setup_requested = pyqtSignal()
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, compact=False):
         super().__init__(parent)
+        self.compact_mode = compact
         self.checker = SlssteamChecker()
         self.current_status = SlssteamStatus.ERROR
         self.current_details = {}
@@ -105,6 +123,32 @@ class SlssteamStatusWidget(ModernFrame):
     
     def _setup_ui(self):
         """Setup the UI components"""
+        if self.compact_mode:
+            self._setup_compact_ui()
+        else:
+            self._setup_full_ui()
+    
+    def _setup_compact_ui(self):
+        """Setup compact UI for title bar integration"""
+        self.setFixedSize(18, 18)
+        self.setStyleSheet("background-color: transparent; border: none;")
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Compact status indicator (clickable)
+        self.status_indicator = ClickableStatusIndicator()
+        self.status_indicator.setFixedSize(16, 16)
+        self.status_indicator.clicked.connect(self._on_indicator_clicked)
+        layout.addWidget(self.status_indicator)
+        
+        # Hide text and button in compact mode
+        self.status_label = None
+        self.action_button = None
+    
+    def _setup_full_ui(self):
+        """Setup full UI for standalone use"""
         self.setFixedHeight(40)
         self.setStyleSheet("""
             ModernFrame {
@@ -140,19 +184,6 @@ class SlssteamStatusWidget(ModernFrame):
         # Action button
         self.action_button = HoverButton("Configure")
         self.action_button.setFixedSize(75, 28)
-        self.action_button.setStyleSheet("""
-            HoverButton {
-                background-color: #C06C84;
-                color: #1E1E1E;
-                border: none;
-                border-radius: 4px;
-                font-weight: bold;
-                font-size: 10px;
-            }
-            HoverButton:hover {
-                background-color: #D07C94;
-            }
-        """)
         self.action_button.setFont(QFont("TrixieCyrG-Plain", 9))
         self.action_button.clicked.connect(self._on_action_clicked)
         self.action_button.hide()  # Hide initially
@@ -179,6 +210,29 @@ class SlssteamStatusWidget(ModernFrame):
         # Update indicator
         self.status_indicator.set_status(self.current_status)
         
+        if self.compact_mode:
+            # Compact mode: only update tooltip
+            self._update_compact_tooltip()
+        else:
+            # Full mode: update text and button
+            self._update_full_ui()
+    
+    def _update_compact_tooltip(self):
+        """Update tooltip for compact mode"""
+        status_message = self.checker.get_status_message(self.current_status, self.current_details)
+        description = self.checker.get_status_description(self.current_status, self.current_details)
+        
+        if not self.can_start_operations():
+            status_message += " (BLOCKED)"
+            description += "\n\nClick to configure SLSsteam."
+        else:
+            description += "\n\nClick to manage SLSsteam settings."
+        
+        self.status_indicator.setToolTip(f"SLSsteam: {status_message}\n\n{description}")
+        self.setToolTip(self.status_indicator.toolTip())
+    
+    def _update_full_ui(self):
+        """Update UI for full mode"""
         # Update text with tooltip info
         status_message = self.checker.get_status_message(self.current_status, self.current_details)
         
@@ -186,7 +240,8 @@ class SlssteamStatusWidget(ModernFrame):
         if not self.can_start_operations():
             status_message += " (BLOCKED)"
         
-        self.status_label.setText(status_message)
+        if self.status_label:
+            self.status_label.setText(status_message)
         
         # Set detailed tooltip
         description = self.checker.get_status_description(self.current_status, self.current_details)
@@ -196,15 +251,16 @@ class SlssteamStatusWidget(ModernFrame):
         self.setToolTip(description)
         
         # Update action button
-        if self.current_status in [SlssteamStatus.NOT_INSTALLED, SlssteamStatus.INSTALLED_BAD_CONFIG]:
-            self.action_button.show()
-            
-            if self.current_status == SlssteamStatus.NOT_INSTALLED:
-                self.action_button.setText("Install")
+        if self.action_button:
+            if self.current_status in [SlssteamStatus.NOT_INSTALLED, SlssteamStatus.INSTALLED_BAD_CONFIG]:
+                self.action_button.show()
+                
+                if self.current_status == SlssteamStatus.NOT_INSTALLED:
+                    self.action_button.setText("Install")
+                else:
+                    self.action_button.setText("Fix")
             else:
-                self.action_button.setText("Fix")
-        else:
-            self.action_button.hide()
+                self.action_button.hide()
     
     def _update_tooltip(self):
         """Update widget tooltip with detailed information"""
@@ -220,6 +276,19 @@ class SlssteamStatusWidget(ModernFrame):
         
         self.setToolTip(tooltip)
     
+    def _on_indicator_clicked(self):
+        """Handle indicator click in compact mode"""
+        try:
+            if self.current_status == SlssteamStatus.NOT_INSTALLED:
+                self._show_install_dialog()
+            elif self.current_status == SlssteamStatus.INSTALLED_BAD_CONFIG:
+                self._show_fix_dialog()
+            else:
+                # If everything is OK, show settings or info
+                self._show_info_dialog()
+        except Exception as e:
+            logger.error(f"Error handling indicator click: {e}")
+    
     def _on_action_clicked(self):
         """Handle action button click"""
         try:
@@ -229,6 +298,16 @@ class SlssteamStatusWidget(ModernFrame):
                 self._show_fix_dialog()
         except Exception as e:
             logger.error(f"Error handling action click: {e}")
+    
+    def _show_info_dialog(self):
+        """Show info dialog when SLSsteam is working"""
+        from PyQt6.QtWidgets import QMessageBox
+        QMessageBox.information(
+            self,
+            "SLSsteam Status",
+            "SLSsteam is properly installed and configured.\n\n"
+            "PlayNotOwnedGames is active and ready for use."
+        )
     
     def _show_install_dialog(self):
         """Show SLSsteam installation dialog"""

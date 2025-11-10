@@ -23,30 +23,33 @@ class HoverButton(QPushButton):
         
     def _setup_style(self):
         """Apply modern styling with hover states."""
-        self.setStyleSheet("""
-            QPushButton {
+        from ui.theme import theme
+        self.setStyleSheet(f"""
+            QPushButton {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                                          stop:0 #282828, stop:1 #1E1E1E);
-                border: 1px solid #C06C84;
-                color: #C06C84;
+                                          stop:0 {theme.colors.SURFACE}, stop:1 {theme.colors.BACKGROUND});
+                border: 1px solid {theme.colors.PRIMARY};
+                color: {theme.colors.PRIMARY};
                 font-weight: bold;
                 padding: 8px 16px;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
-            }
-            QPushButton:hover {
+                {theme.border_radius.get_border_radius(theme.border_radius.MEDIUM)};
+                {theme.shadows.get_shadow(theme.shadows.SUBTLE)};
+            }}
+            QPushButton:hover {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                                          stop:0 #C06C84, stop:1 #A05C74);
-                border: 1px solid #D07C94;
-                color: #1E1E1E;
-                transform: translateY(-1px);
-            }
-            QPushButton:pressed {
+                                          stop:0 {theme.colors.PRIMARY}, stop:1 {theme.colors.PRIMARY_DARK});
+                border: 1px solid {theme.colors.PRIMARY_LIGHT};
+                color: {theme.colors.TEXT_ON_PRIMARY};
+                {theme.shadows.get_shadow(theme.shadows.MEDIUM)};
+            }}
+            QPushButton:pressed {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                                          stop:0 #A05C74, stop:1 #804C64);
-                border: 1px solid #905C74;
-                transform: translateY(0px);
-            }
+                                          stop:0 {theme.colors.PRIMARY_DARK}, stop:1 {theme.colors.PRIMARY_DARK});
+                border: 1px solid {theme.colors.PRIMARY_DARK};
+                {theme.shadows.get_shadow(theme.shadows.NONE)};
+            }}
         """)
 
 class ModernFrame(QFrame):
@@ -60,12 +63,21 @@ class ModernFrame(QFrame):
         
     def _setup_style(self):
         """Apply glassmorphism styling."""
-        self.setStyleSheet("""
-            QFrame {
-                background: rgba(30, 30, 30, 0.95);
-                border: 1px solid rgba(192, 108, 132, 0.3);
-                backdrop-filter: blur(10px);
-            }
+        from ui.theme import theme
+        self.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {theme.colors.GLASS_SURFACE}, stop:1 {theme.colors.SURFACE});
+                border: 1px solid {theme.colors.GLASS_BORDER};
+                {theme.border_radius.get_border_radius(theme.border_radius.LARGE)};
+                {theme.shadows.get_shadow(theme.shadows.SUBTLE)};
+            }}
+            QFrame:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {theme.colors.SURFACE_LIGHT}, stop:1 {theme.colors.SURFACE});
+                border: 1px solid {theme.colors.BORDER_LIGHT};
+                {theme.shadows.get_shadow(theme.shadows.MEDIUM)};
+            }}
         """)
 
 class AnimatedLabel(QLabel):
@@ -86,13 +98,15 @@ class AnimatedLabel(QLabel):
         
     def _setup_style(self):
         """Apply enhanced typography styling."""
-        self.setStyleSheet("""
-            QLabel {
-                color: #C06C84;
+        from ui.theme import theme
+        self.setStyleSheet(f"""
+            QLabel {{
+                color: {theme.colors.TEXT_ACCENT};
                 font-weight: 500;
                 letter-spacing: 0.3px;
                 padding: 4px;
-            }
+                {theme.animations.get_transition("color", theme.animations.DURATION_NORMAL)};
+            }}
         """)
         
     def fade_in(self):

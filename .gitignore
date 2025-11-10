@@ -45,5 +45,7 @@ config/depots.ini
 # Temporary files
 tmp/
 temp/
+
 # Development documentation
 CLAUDE.md
+AGENTS.md

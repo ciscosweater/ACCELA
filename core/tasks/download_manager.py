@@ -9,9 +9,8 @@ import logging
 import uuid
 from enum import Enum
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Set
 from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QThread
-from PyQt6.QtWidgets import QApplication
 
 from .download_depots_task import DownloadDepotsTask
 from .download_session import DownloadSession, DownloadState
@@ -56,13 +55,42 @@ class DownloadManager(QObject):
         # Timer para verificações periódicas
         self.monitor_timer = QTimer()
         self.monitor_timer.timeout.connect(self._monitor_download)
-        self.monitor_timer.setInterval(1000)  # Verifica a cada segundo
+        self.monitor_timer.setInterval(2000)  # Reduzido para 2s para melhor responsividade
+        
+        # Controle de threads ativas para memory leak prevention
+        self._active_threads: Set[QThread] = set()
         
         logger.info("DownloadManager initialized")
     
     def start_download(self, game_data: Dict[str, Any], selected_depots: list, dest_path: str) -> str:
-        """Inicia novo download com gerenciamento de estado"""
+        """
+        Inicia novo download com gerenciamento de estado completo.
+        
+        Args:
+            game_data: Dicionário com dados do jogo (appid, name, depots, manifests)
+            selected_depots: Lista de IDs de depots para baixar
+            dest_path: Diretório de destino para instalação
+            
+        Returns:
+            str: ID único da sessão de download ou string vazia em caso de erro
+            
+        Raises:
+            ValueError: Se parâmetros obrigatórios forem inválidos
+        """
         try:
+            # Validações de segurança
+            if not game_data or not isinstance(game_data, dict):
+                raise ValueError("Invalid game_data: must be a non-empty dictionary")
+                
+            if not selected_depots or not isinstance(selected_depots, list):
+                raise ValueError("Invalid selected_depots: must be a non-empty list")
+                
+            if not dest_path or not isinstance(dest_path, str):
+                raise ValueError("Invalid dest_path: must be a non-empty string")
+                
+            if not os.path.exists(dest_path):
+                raise ValueError(f"Destination path does not exist: {dest_path}")
+                
             # Gerar ID único para sessão
             session_id = str(uuid.uuid4())
             
@@ -122,8 +150,9 @@ class DownloadManager(QObject):
                 
                 # Atualizar estado
                 self._set_state(DownloadState.PAUSED)
-                self.current_session.download_state = DownloadState.PAUSED
-                self.current_session.save()
+                if self.current_session:
+                    self.current_session.download_state = DownloadState.PAUSED
+                    self.current_session.save()
                 
                 self.download_paused.emit()
                 logger.info("Download paused successfully")
@@ -146,8 +175,9 @@ class DownloadManager(QObject):
                 
                 # Atualizar estado
                 self._set_state(DownloadState.DOWNLOADING)
-                self.current_session.download_state = DownloadState.DOWNLOADING
-                self.current_session.save()
+                if self.current_session:
+                    self.current_session.download_state = DownloadState.DOWNLOADING
+                    self.current_session.save()
                 
                 self.download_resumed.emit()
                 logger.info("Download resumed successfully")
@@ -157,7 +187,15 @@ class DownloadManager(QObject):
             self.download_error.emit(f"Failed to resume download: {e}")
     
     def cancel_download(self):
-        """Cancela download e limpa recursos"""
+        """
+        Cancela download e limpa recursos de forma segura.
+        
+        Este método garante que:
+        - Processos sejam terminados gracefulmente
+        - Arquivos parciais sejam removidos com segurança
+        - Steam libraries nunca sejam afetadas
+        - Sessão seja marcada como cancelada
+        """
         try:
             logger.info("Cancelling download...")
             
@@ -203,14 +241,14 @@ class DownloadManager(QObject):
                         
                         # Fallback para limpeza legada em caso de erro
                         logger.info("Falling back to legacy cleanup")
-                        self.cleanup_manager.cleanup_partial_download()
+                        self.cleanup_manager.cleanup_session(self.current_session.session_id)
                 else:
                     logger.warning(f"Game install directory not found or doesn't exist: {install_dir}")
                     # Fallback para limpeza legada
-                    self.cleanup_manager.cleanup_partial_download()
+                    self.cleanup_manager.cleanup_session(self.current_session.session_id)
             else:
                 # Fallback para limpeza legada
-                self.cleanup_manager.cleanup_partial_download()
+                self.cleanup_manager.cleanup_session(self.current_session.session_id if self.current_session else None)
             
         except Exception as e:
             logger.error(f"Error during download cancellation: {e}")
@@ -281,27 +319,51 @@ class DownloadManager(QObject):
     
     def _get_game_install_directory(self, dest_path: str, game_data: Dict) -> str:
         """
-        Calcula o diretório de instalação específico do jogo.
+        Calcula o diretório de instalação específico do jogo com validações de segurança.
         
         Args:
-            dest_path: Path da biblioteca Steam
-            game_data: Dados do jogo com installdir
+            dest_path: Path da biblioteca Steam (validado)
+            game_data: Dados do jogo com installdir (validado)
             
         Returns:
-            Caminho completo do diretório de instalação do jogo
+            Caminho completo do diretório de instalação do jogo ou string vazia em erro
         """
         try:
             import re
             
+            # Validações de segurança
+            if not dest_path or not isinstance(dest_path, str):
+                logger.error("Invalid dest_path for install directory calculation")
+                return ""
+                
+            if not game_data or not isinstance(game_data, dict):
+                logger.error("Invalid game_data for install directory calculation")
+                return ""
+                
+            appid = game_data.get('appid')
+            if not appid:
+                logger.error("Missing appid in game_data")
+                return ""
+            
             # Obter install_folder_name da mesma forma que DownloadDepotsTask
-            safe_game_name_fallback = re.sub(r'[^\w\s-]', '', game_data.get('game_name', '')).strip().replace(' ', '_')
+            game_name = game_data.get('game_name', '')
+            safe_game_name_fallback = re.sub(r'[^\w\s-]', '', str(game_name)).strip().replace(' ', '_')
             install_folder_name = game_data.get('installdir', safe_game_name_fallback)
             
             if not install_folder_name:
-                install_folder_name = f"App_{game_data['appid']}"
+                install_folder_name = f"App_{appid}"
+            
+            # Sanitização do nome do diretório
+            install_folder_name = re.sub(r'[<>:"/\\|?*]', '_', str(install_folder_name))
             
             # Montar caminho: dest_path/steamapps/common/install_folder_name
             install_dir = os.path.join(dest_path, 'steamapps', 'common', install_folder_name)
+            
+            # Validação final do caminho
+            install_dir = os.path.normpath(install_dir)
+            if not install_dir.startswith(os.path.normpath(dest_path)):
+                logger.error(f"Path traversal attempt detected: {install_dir}")
+                return ""
             
             logger.debug(f"Calculated install directory: {install_dir}")
             return install_dir
@@ -324,6 +386,9 @@ class DownloadManager(QObject):
     def _run_download_task(self, game_data: Dict[str, Any], selected_depots: list, dest_path: str):
         """Executa task de download em thread separada"""
         try:
+            if not self.download_task:
+                raise ValueError("Download task not initialized")
+                
             self.task_runner = TaskRunner()
             worker = self.task_runner.run(
                 self.download_task.run,
@@ -332,7 +397,8 @@ class DownloadManager(QObject):
                 dest_path
             )
             # Conectar signals do worker para tratamento de erros
-            worker.error.connect(self._handle_task_error)
+            if hasattr(worker, 'error'):
+                worker.error.connect(self._handle_task_error)
             # Nota: worker.completed não é conectado aqui porque a task já emite 'finished'
         except Exception as e:
             logger.error(f"Failed to run download task: {e}")
@@ -365,19 +431,26 @@ class DownloadManager(QObject):
             logger.error(f"Error terminating process: {e}")
     
     def _monitor_download(self):
-        """Monitora estado do processo e download"""
+        """Monitora estado do processo e download com race condition prevention"""
         try:
             if not self.current_process:
                 return
                 
-            if not self.current_process.is_running():
+            # Verificar se processo ainda existe e está rodando
+            is_running = False
+            try:
+                if self.current_process:
+                    is_running = self.current_process.is_running()
+            except (psutil.NoSuchProcess, psutil.AccessDenied, AttributeError):
+                is_running = False
+                
+            if not is_running:
                 # Processo terminou - verificar se foi esperado
                 if self.download_state == DownloadState.DOWNLOADING:
                     # Se não estamos em finalização controlada, verificar terminação inesperada
                     if not self._task_finishing:
-                        QTimer.singleShot(2000, self._check_process_termination)
-        except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-            logger.debug(f"Process monitoring error (expected): {e}")
+                        # Delay reduzido para melhor responsividade
+                        QTimer.singleShot(1000, self._check_process_termination)
         except Exception as e:
             logger.error(f"Error monitoring download: {e}")
     
@@ -490,10 +563,47 @@ class DownloadManager(QObject):
         logger.error(f"Download task error: {error_message}")
     
     def cleanup(self):
-        """Limpa recursos ao destruir"""
+        """
+        Limpa recursos ao destruir o manager.
+        
+        Garante que:
+        - Timer seja parado
+        - Processos sejam terminados gracefulmente
+        - Threads sejam limpas
+        - Recursos sejam liberados
+        """
         try:
-            self.monitor_timer.stop()
+            logger.info("Cleaning up DownloadManager resources...")
+            
+            # Parar timer de monitoramento
+            if hasattr(self, 'monitor_timer'):
+                self.monitor_timer.stop()
+            
+            # Terminar processo ativo
             if self.current_process and self.current_process.is_running():
                 self._terminate_process()
+            
+            # Limpar threads ativas
+            if hasattr(self, '_active_threads'):
+                for thread in self._active_threads.copy():
+                    try:
+                        if thread.isRunning():
+                            thread.quit()
+                            if not thread.wait(2000):
+                                thread.terminate()
+                                thread.wait(1000)
+                    except Exception as e:
+                        logger.warning(f"Error cleaning up thread {thread}: {e}")
+                    finally:
+                        self._active_threads.discard(thread)
+            
+            # Limpar referências
+            self.current_process = None
+            self.download_task = None
+            self.task_runner = None
+            self.current_session = None
+            
+            logger.info("DownloadManager cleanup completed")
+            
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")

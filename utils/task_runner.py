@@ -66,6 +66,7 @@ class TaskRunner:
         self.worker.completed.connect(self.thread.quit)
         self.worker.completed.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.finished.connect(self._cleanup)
 
         # --- MODIFICATION START ---
         # Connect the cleanup slot to remove the runner from the active list
@@ -90,7 +91,9 @@ class TaskRunner:
         A slot that runs on task completion to remove this TaskRunner
         instance from the active list, allowing it to be garbage collected.
         """
-        func_name = self.worker.target_func.__name__
+        func_name = "unknown"
+        if self.worker and hasattr(self.worker, 'target_func'):
+            func_name = self.worker.target_func.__name__
         logger.debug(f"Cleaning up TaskRunner instance for '{func_name}'.")
         if self in TaskRunner._active_runners:
             TaskRunner._active_runners.remove(self)

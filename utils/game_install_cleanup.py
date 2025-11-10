@@ -166,7 +166,8 @@ class GameInstallDirectoryCleanup:
         Múltiplas camadas de verificação para garantir que só apague o diretório correto
         """
         try:
-            install_path = Path(install_dir)
+            # 🔒 PATH TRAVERSAL SECURITY: Resolve and validate path
+            install_path = Path(install_dir).resolve()
             
             logger.info("🔒 STARTING ULTRA SAFETY CHECKS 🔒")
             
@@ -178,6 +179,27 @@ class GameInstallDirectoryCleanup:
             # 2. Não pode ser diretório raiz ou system
             if install_path.is_absolute() and len(install_path.parts) <= 3:
                 logger.error(f"🚨 SAFETY: Directory too close to root: {install_dir}")
+                return False
+            
+            # 2.1. 🔒 ADDITIONAL SECURITY: Verify against allowed base paths
+            allowed_base_paths = [
+                Path.home() / ".steam" / "steam",
+                Path.home() / ".local" / "share" / "Steam",
+                Path("/usr/local/games/steam"),
+                Path("/opt/steam")
+            ]
+            
+            is_allowed_path = False
+            for base_path in allowed_base_paths:
+                try:
+                    if install_path.is_relative_to(base_path.resolve()):
+                        is_allowed_path = True
+                        break
+                except (ValueError, OSError):
+                    continue
+            
+            if not is_allowed_path:
+                logger.error(f"🚨 SAFETY: Path not in allowed Steam directories: {install_path}")
                 return False
             
             # 3. DEVE conter 'steamapps/common' no caminho (Steam library structure)

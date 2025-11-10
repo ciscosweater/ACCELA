@@ -11,6 +11,7 @@ from PyQt6.QtGui import QFont
 from core.slssteam_checker import SlssteamChecker, SlssteamStatus
 from ui.interactions import ModernFrame, HoverButton
 from ui.enhanced_widgets import EnhancedProgressBar
+from ui.enhanced_dialogs import ModernDialog
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class SlssteamInstallThread(QThread):
             self.process.terminate()
             self.process.wait()
 
-class SlssteamSetupDialog(ModernFrame):
+class SlssteamSetupDialog(ModernDialog):
     """
     Dialog for SLSsteam installation and configuration.
     
@@ -97,13 +98,6 @@ class SlssteamSetupDialog(ModernFrame):
         """Setup dialog-specific properties"""
         self.setFixedSize(600, 500)
         self.setWindowTitle("SLSsteam Setup")
-        
-        # Make it behave like a dialog
-        self.setWindowFlags(
-            Qt.WindowType.Dialog |
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.WindowStaysOnTopHint
-        )
     
     def _setup_ui(self):
         """Setup the dialog UI"""
@@ -129,7 +123,7 @@ class SlssteamSetupDialog(ModernFrame):
         self.description_label = QLabel("")
         self.description_label.setStyleSheet("""
             QLabel {
-                color: #B0B0B0;
+                color: #808080;
                 font-size: 12px;
                 margin-bottom: 15px;
             }
@@ -172,8 +166,8 @@ class SlssteamSetupDialog(ModernFrame):
         self.output_text = QTextEdit()
         self.output_text.setStyleSheet("""
             QTextEdit {
-                background-color: #1E1E1E;
-                color: #B0B0B0;
+                background-color: #282828;
+                color: #C06C84;
                 border: 1px solid #404040;
                 border-radius: 4px;
                 font-family: 'Courier New', monospace;

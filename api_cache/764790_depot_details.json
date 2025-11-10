@@ -1,0 +1,18 @@
+{
+  "depots": {
+    "764791": {
+      "name": "Depot 764791",
+      "oslist": "windows",
+      "language": "",
+      "steamdeck": false
+    },
+    "branches": {
+      "name": "Depot branches",
+      "oslist": null,
+      "language": null,
+      "steamdeck": false
+    }
+  },
+  "installdir": "The Messenger",
+  "game_name": "The Messenger"
+}

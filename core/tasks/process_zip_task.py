@@ -55,13 +55,28 @@ class ProcessZipTask:
                 if not lua_files:
                     raise FileNotFoundError("No .lua file found in the zip archive.")
                 
-                manifest_files = {os.path.basename(f): zip_ref.read(f) for f in zip_ref.namelist() if f.endswith('.manifest')}
+                # Processar manifest files com streaming para economizar memória
+                manifest_files = {}
+                for file_info in zip_ref.infolist():
+                    if file_info.filename.endswith('.manifest'):
+                        with zip_ref.open(file_info) as manifest_file:
+                            manifest_content = manifest_file.read()
+                            manifest_files[os.path.basename(file_info.filename)] = manifest_content
+                
                 for depot_id_manifest in manifest_files:
                     parts = depot_id_manifest.replace('.manifest', '').split('_')
                     if len(parts) == 2:
                         game_data.setdefault('manifests', {})[parts[0]] = parts[1]
 
-                lua_content = zip_ref.read(lua_files[0]).decode('utf-8')
+                # Ler arquivo LUA com streaming para evitar carregar arquivos grandes em memória
+                with zip_ref.open(lua_files[0]) as lua_file:
+                    # Ler em chunks para arquivos muito grandes
+                    lua_content = ""
+                    while True:
+                        chunk = lua_file.read(8192)  # 8KB chunks
+                        if not chunk:
+                            break
+                        lua_content += chunk.decode('utf-8')
                 
                 self._parse_lua(lua_content, game_data)
                 

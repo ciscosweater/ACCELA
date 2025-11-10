@@ -4,6 +4,7 @@ import sys
 import os
 import re
 import psutil
+import shlex
 from PyQt6.QtCore import QObject, pyqtSignal, QThread
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ class StreamReader(QObject):
 class DownloadDepotsTask(QObject):
     """
     A dedicated class for the download task. This is necessary because the task
-    needs to emit progress signals during its long-running execution.
+    needs to emit progress signals during its long-running executiona .
     """
     progress = pyqtSignal(str)
     progress_percentage = pyqtSignal(int)
@@ -134,12 +135,30 @@ class DownloadDepotsTask(QObject):
                     if not self._should_stop:
                         self._current_process.wait()
                     
-                    # Limpar recursos da thread
-                    stream_reader.stop()
-                    reader_thread.quit()
-                    if not reader_thread.wait(3000):  # Timeout de 3 segundos
-                        logger.warning("Reader thread did not finish cleanly")
-                        reader_thread.terminate()
+                    # Limpar recursos da thread e processo
+                    try:
+                        stream_reader.stop()
+                        reader_thread.quit()
+                        if not reader_thread.wait(3000):  # Timeout de 3 segundos
+                            logger.warning("Reader thread did not finish cleanly")
+                            reader_thread.terminate()
+                            reader_thread.wait(1000)  # Aguardar finalização forçada
+                    except Exception as e:
+                        logger.error(f"Error cleaning up reader thread: {e}")
+                    
+                    # Garantir cleanup do processo
+                    try:
+                        if self._current_process and self._current_process.poll() is None:
+                            self._current_process.terminate()
+                            try:
+                                self._current_process.wait(timeout=2)
+                            except subprocess.TimeoutExpired:
+                                self._current_process.kill()
+                                self._current_process.wait(timeout=1)
+                    except Exception as e:
+                        logger.error(f"Error cleaning up process: {e}")
+                    
+                    self._current_process = None
 
                     # Verificar se foi cancelado durante o processo
                     if self._should_stop:
@@ -150,10 +169,15 @@ class DownloadDepotsTask(QObject):
                         self.cancelled.emit()
                         return
 
-                    if self._current_process.returncode == 0:
+                    # Verificar resultado do processo com segurança
+                    process_returncode = self._current_process.returncode if self._current_process else None
+                    
+                    if process_returncode == 0:
                         self.depot_completed.emit(depot_id)
+                    elif process_returncode is not None:
+                        self.progress.emit(f"Warning: DepotDownloaderMod exited with code {process_returncode} for depot {depot_id}.")
                     else:
-                        self.progress.emit(f"Warning: DepotDownloaderMod exited with code {self._current_process.returncode} for depot {depot_id}.")
+                        self.progress.emit(f"Warning: Process reference lost for depot {depot_id}.")
 
                 except FileNotFoundError:
                     self.progress.emit("ERROR: ./external/DepotDownloaderMod not found. Make sure it's in the external/ directory.")
@@ -265,11 +289,11 @@ class DownloadDepotsTask(QObject):
                 continue
             
             commands.append([
-                "./external/DepotDownloaderMod", "-app", game_data['appid'], "-depot", str(depot_id),
-                "-manifest", manifest_id,
-                "-manifestfile", os.path.join('manifest', f"{depot_id}_{manifest_id}.manifest"),
-                "-depotkeys", keys_path, "-max-downloads", "25",
-                "-dir", download_dir, "-validate"
+                "./external/DepotDownloaderMod", "-app", str(game_data['appid']), "-depot", str(depot_id),
+                "-manifest", str(manifest_id),
+                "-manifestfile", shlex.quote(os.path.join('manifest', f"{depot_id}_{manifest_id}.manifest")),
+                "-depotkeys", shlex.quote(keys_path), "-max-downloads", "25",
+                "-dir", shlex.quote(download_dir), "-validate"
             ])
 
         return commands, skipped_depots

@@ -32,7 +32,7 @@ from core.tasks.download_depots_task import DownloadDepotsTask
 from core.tasks.download_manager import DownloadManager
 from core.tasks.monitor_speed_task import SpeedMonitorTask
 from core import steam_helpers
-from utils.logger import qt_log_handler
+from utils.logger import setup_logging
 from utils.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -118,17 +118,24 @@ class MainWindow(QMainWindow):
         self.layout.setSpacing(0)
 
         main_content_frame = QFrame()
-        main_content_frame.setStyleSheet("background-color: #000000;")
+        main_content_frame.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #0A0A0A, stop:1 #1A1A1A);
+                border: 1px solid #2A2A2A;
+                border-radius: 8px;
+            }
+        """)
         self.layout.addWidget(main_content_frame)
         
         main_layout = QVBoxLayout(main_content_frame)
-        main_layout.setContentsMargins(0,0,0,0)
-        main_layout.setSpacing(5)  # Reduced spacing between elements
+        main_layout.setContentsMargins(16,8,16,16)  # Margens adequadas para visual moderno
+        main_layout.setSpacing(12)  # Spacing adequado entre elementos
         
         drop_zone_container = QWidget()
         drop_zone_layout = QVBoxLayout(drop_zone_container)
-        drop_zone_layout.setContentsMargins(0,0,0,0)
-        drop_zone_layout.setSpacing(0)
+        drop_zone_layout.setContentsMargins(8,8,8,8)  # Margens adequadas para drop zone
+        drop_zone_layout.setSpacing(8)  # Spacing adequado
 
         self.drop_label = ScaledLabel()
         self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -144,7 +151,15 @@ class MainWindow(QMainWindow):
 
         self.drop_text_label = ScaledFontLabel("Drag and Drop Zip here")
         self.drop_text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.drop_text_label.setStyleSheet("background-color: transparent;")
+        from .theme import theme
+        self.drop_text_label.setStyleSheet(f"""
+            QLabel {{
+                color: {theme.colors.TEXT_SECONDARY};
+                background-color: transparent;
+                font-size: 14px;
+                font-weight: 500;
+            }}
+        """)
         drop_zone_layout.addWidget(self.drop_text_label, 1)
 
         
@@ -158,7 +173,7 @@ class MainWindow(QMainWindow):
         self.game_image_container.setMaximumWidth(600)  # Constrain width to prevent excess space
         self.game_image_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         game_image_layout = QHBoxLayout(self.game_image_container)
-        game_image_layout.setContentsMargins(10, 5, 10, 5)  # Reduced margins
+        game_image_layout.setContentsMargins(12, 8, 12, 8)  # Margens adequadas
         
         self.game_header_label = QLabel()
         self.game_header_label.setMinimumSize(100, 30)  # Reduced minimum size
@@ -247,7 +262,14 @@ class MainWindow(QMainWindow):
         self.log_output.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.log_output.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         main_layout.addWidget(self.log_output, 1)
-        qt_log_handler.new_record.connect(self.log_output.append)
+        # Get the Qt log handler after logging is set up
+        try:
+            from utils.logger import qt_log_handler
+            if qt_log_handler:
+                qt_log_handler.new_record.connect(self.log_output.append)
+        except (ImportError, AttributeError):
+            # Fallback if logging handler is not available
+            pass
 
         self.title_bar = CustomTitleBar(self)
         self.layout.addWidget(self.title_bar)
@@ -842,4 +864,10 @@ class MainWindow(QMainWindow):
     
     def closeEvent(self, event):
         self._stop_speed_monitor()
+        
+        # Clean up image thread if exists
+        if hasattr(self, 'image_thread') and self.image_thread:
+            self.image_thread.quit()
+            self.image_thread.wait(3000)
+        
         super().closeEvent(event)

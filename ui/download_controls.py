@@ -43,11 +43,14 @@ class DownloadControls(QWidget):
         self.status_label.setMinimumWidth(250)
         self.status_label.setStyleSheet(f"""
             QLabel {{
-                color: {theme.colors.TEXT_PRIMARY};
+                color: {theme.colors.TEXT_SECONDARY};
                 font-size: 12px;
                 font-weight: 500;
-                background: transparent;
-                padding: 4px 8px;
+                background: {theme.colors.SURFACE};
+                border: 1px solid {theme.colors.BORDER};
+                border-radius: 4px;
+                padding: 6px 12px;
+                {theme.animations.get_transition("all", theme.animations.DURATION_NORMAL)};
             }}
         """)
         layout.addWidget(self.status_label)
@@ -167,11 +170,15 @@ class DownloadControls(QWidget):
         self.status_label.setText("Downloading in progress...")
         self.status_label.setStyleSheet(f"""
             QLabel {{
-                color: {theme.colors.PRIMARY};
+                color: {theme.colors.TEXT_ON_PRIMARY};
                 font-size: 12px;
-                font-weight: 500;
-                background: transparent;
-                padding: 4px 8px;
+                font-weight: 600;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {theme.colors.PRIMARY}, stop:1 {theme.colors.PRIMARY_DARK});
+                border: 1px solid {theme.colors.PRIMARY_DARK};
+                border-radius: 4px;
+                padding: 6px 12px;
+                {theme.shadows.get_shadow(theme.shadows.SUBTLE)};
             }}
         """)
 
@@ -186,11 +193,15 @@ class DownloadControls(QWidget):
         self.status_label.setText("Download paused")
         self.status_label.setStyleSheet(f"""
             QLabel {{
-                color: {theme.colors.WARNING};
+                color: {theme.colors.TEXT_ON_PRIMARY};
                 font-size: 12px;
-                font-weight: 500;
-                background: transparent;
-                padding: 4px 8px;
+                font-weight: 600;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {theme.colors.WARNING}, stop:1 {theme.colors.WARNING_DARK});
+                border: 1px solid {theme.colors.WARNING_DARK};
+                border-radius: 4px;
+                padding: 6px 12px;
+                {theme.shadows.get_shadow(theme.shadows.SUBTLE)};
             }}
         """)
 
@@ -205,11 +216,15 @@ class DownloadControls(QWidget):
         self.status_label.setText("Download completed successfully!")
         self.status_label.setStyleSheet(f"""
             QLabel {{
-                color: {theme.colors.SUCCESS};
+                color: {theme.colors.TEXT_ON_PRIMARY};
                 font-size: 12px;
-                font-weight: 500;
-                background: transparent;
-                padding: 4px 8px;
+                font-weight: 600;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {theme.colors.SUCCESS}, stop:1 {theme.colors.SUCCESS_DARK});
+                border: 1px solid {theme.colors.SUCCESS_DARK};
+                border-radius: 4px;
+                padding: 6px 12px;
+                {theme.shadows.get_shadow(theme.shadows.SUBTLE)};
             }}
         """)
 
@@ -225,11 +240,15 @@ class DownloadControls(QWidget):
         self.status_label.setText("Cancelling download...")
         self.status_label.setStyleSheet(f"""
             QLabel {{
-                color: {theme.colors.ERROR};
+                color: {theme.colors.TEXT_ON_PRIMARY};
                 font-size: 12px;
-                font-weight: 500;
-                background: transparent;
-                padding: 4px 8px;
+                font-weight: 600;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {theme.colors.ERROR}, stop:1 {theme.colors.ERROR_DARK});
+                border: 1px solid {theme.colors.ERROR_DARK};
+                border-radius: 4px;
+                padding: 6px 12px;
+                {theme.shadows.get_shadow(theme.shadows.SUBTLE)};
             }}
         """)
 
@@ -250,8 +269,11 @@ class DownloadControls(QWidget):
                 color: {theme.colors.TEXT_SECONDARY};
                 font-size: 12px;
                 font-weight: 500;
-                background: transparent;
-                padding: 4px 8px;
+                background: {theme.colors.SURFACE};
+                border: 1px solid {theme.colors.BORDER};
+                border-radius: 4px;
+                padding: 6px 12px;
+                {theme.animations.get_transition("all", theme.animations.DURATION_NORMAL)};
             }}
         """)
 

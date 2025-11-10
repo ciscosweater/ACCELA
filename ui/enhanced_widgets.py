@@ -59,7 +59,7 @@ class EnhancedProgressBar(QProgressBar):
             glow_color = "transparent"
             self.setFormat("%p%")
         
-        # Aplicar estilo dinâmico simples
+        # Aplicar estilo dinâmico com gradientes e sombras
         style = f"""
             QProgressBar {{
                 border: 1px solid {border_color};
@@ -68,12 +68,16 @@ class EnhancedProgressBar(QProgressBar):
                 font-weight: bold;
                 font-size: 10px;
                 color: {theme.colors.TEXT_PRIMARY};
-                background: {theme.colors.SURFACE};
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {theme.colors.SURFACE}, stop:1 {theme.colors.BACKGROUND});
                 height: 20px;
+                {theme.shadows.get_shadow(theme.shadows.SUBTLE)};
             }}
             QProgressBar::chunk {{
-                background: {chunk_color};
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {chunk_color}, stop:0.5 {chunk_color}CC, stop:1 {chunk_color});
                 border-radius: 3px;
+                {theme.animations.get_transition("width", theme.animations.DURATION_SLOW)};
             }}
         """
         
@@ -199,9 +203,9 @@ class PrimaryButton(QLabel):
         """Setup mouse interactions"""
         pass
         
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, ev):
         """Handle mouse press"""
-        if event.button() == Qt.MouseButton.LeftButton:
+        if ev.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
 
 
@@ -227,9 +231,9 @@ class SecondaryButton(QLabel):
         """Setup mouse interactions"""
         pass
         
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, ev):
         """Handle mouse press"""
-        if event.button() == Qt.MouseButton.LeftButton:
+        if ev.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
 
 

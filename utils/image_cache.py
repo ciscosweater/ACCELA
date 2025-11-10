@@ -5,7 +5,9 @@ import os
 import hashlib
 import logging
 import requests
-from typing import Optional, Dict, Any
+import time
+from typing import Optional, Dict, Any, Tuple
+from collections import OrderedDict
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap
 
@@ -27,11 +29,53 @@ class ImageCacheManager(QObject):
         self.cache_dir = cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
         
-        # Cache settings
-        self.max_cache_size_mb = 100  # Maximum cache size in MB
-        self.max_age_days = 30        # Maximum age of cached images
+        # Enhanced cache settings
+        self.max_cache_size_mb = 50   # Reduced from 100MB to prevent memory exhaustion
+        self.max_age_days = 7         # Reduced from 30 days for more aggressive cleanup
+        self.max_file_count = 1000    # Maximum number of cached files
+        
+        # LRU Cache tracking (in-memory for fast access)
+        self._lru_cache = OrderedDict()  # app_id_url -> (filepath, access_time, size)
+        self._cache_loaded = False
         
         logger.info(f"Image cache initialized at: {self.cache_dir}")
+        self._load_cache_metadata()
+    
+    def _load_cache_metadata(self):
+        """Load existing cache files into LRU tracking"""
+        if self._cache_loaded:
+            return
+            
+        try:
+            for filename in os.listdir(self.cache_dir):
+                filepath = os.path.join(self.cache_dir, filename)
+                if os.path.isfile(filepath):
+                    try:
+                        # Extract app_id from filename (format: app_id_hash.jpg)
+                        parts = filename.replace('.jpg', '').split('_')
+                        if len(parts) >= 2:
+                            app_id = parts[0]
+                            cache_key = f"{app_id}_{filename}"
+                            
+                            mtime = os.path.getmtime(filepath)
+                            size = os.path.getsize(filepath)
+                            
+                            self._lru_cache[cache_key] = (filepath, mtime, size)
+                    except (ValueError, OSError):
+                        continue
+            
+            self._cache_loaded = True
+            logger.debug(f"Loaded {len(self._lru_cache)} files into LRU cache")
+            
+        except Exception as e:
+            logger.error(f"Error loading cache metadata: {e}")
+    
+    def _update_lru_access(self, cache_key: str, filepath: str, size: int):
+        """Update LRU cache when file is accessed"""
+        current_time = time.time()
+        self._lru_cache[cache_key] = (filepath, current_time, size)
+        # Move to end (most recently used)
+        self._lru_cache.move_to_end(cache_key)
     
     def get_cache_path(self, app_id: str, url: str) -> str:
         """Generate cache file path for an app"""
@@ -71,15 +115,22 @@ class ImageCacheManager(QObject):
             return None
         
         cache_path = self.get_cache_path(app_id, url)
+        cache_key = f"{app_id}_{os.path.basename(cache_path)}"
         
         try:
             pixmap = QPixmap(cache_path)
             if not pixmap.isNull():
+                # Update LRU access
+                file_size = os.path.getsize(cache_path)
+                self._update_lru_access(cache_key, cache_path, file_size)
+                
                 logger.debug(f"Loaded cached image for app {app_id}")
                 return pixmap
             else:
                 logger.warning(f"Cached image is corrupted for app {app_id}")
                 os.remove(cache_path)
+                # Remove from LRU cache
+                self._lru_cache.pop(cache_key, None)
                 return None
         except Exception as e:
             logger.error(f"Error loading cached image for app {app_id}: {e}")
@@ -141,51 +192,72 @@ class ImageCacheManager(QObject):
             return None
     
     def _cleanup_cache(self):
-        """Clean up old cache files if cache is too large"""
+        """Enhanced cache cleanup with LRU eviction and multiple limits"""
         try:
-            # Calculate current cache size
-            total_size = 0
-            cache_files = []
+            # Ensure LRU cache is loaded
+            if not self._cache_loaded:
+                self._load_cache_metadata()
             
-            for filename in os.listdir(self.cache_dir):
-                filepath = os.path.join(self.cache_dir, filename)
-                if os.path.isfile(filepath):
-                    size = os.path.getsize(filepath)
-                    mtime = os.path.getmtime(filepath)
-                    cache_files.append((filepath, size, mtime))
-                    total_size += size
+            # Check file count limit
+            if len(self._lru_cache) > self.max_file_count:
+                self._evict_lru_files(target_count=int(self.max_file_count * 0.8))
             
-            # Convert to MB
+            # Calculate current cache size from LRU data
+            total_size = sum(size for (_, _, size) in self._lru_cache.values())
             total_size_mb = total_size / (1024 * 1024)
             
             if total_size_mb <= self.max_cache_size_mb:
                 return
             
-            # Sort by modification time (oldest first)
-            cache_files.sort(key=lambda x: x[2])
-            
-            # Remove oldest files until under limit
+            # Evict based on size limit
             target_size = self.max_cache_size_mb * 0.8 * 1024 * 1024  # 80% of max
-            current_size = total_size
+            self._evict_lru_files(target_size=target_size)
             
+        except Exception as e:
+            logger.error(f"Error during enhanced cache cleanup: {e}")
+    
+    def _evict_lru_files(self, target_count: Optional[int] = None, target_size: Optional[int] = None):
+        """Evict least recently used files from cache"""
+        try:
             removed_count = 0
-            for filepath, size, mtime in cache_files:
-                if current_size <= target_size:
+            freed_size = 0
+            current_size = sum(size for (_, _, size) in self._lru_cache.values())
+            
+            # Sort by access time (oldest first)
+            sorted_items = sorted(self._lru_cache.items(), key=lambda x: x[1][1])
+            
+            for cache_key, (filepath, _, size) in sorted_items:
+                should_remove = False
+                
+                if target_count and len(self._lru_cache) > target_count:
+                    should_remove = True
+                elif target_size and current_size > target_size:
+                    should_remove = True
+                
+                if not should_remove:
                     break
                 
                 try:
-                    os.remove(filepath)
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+                    
+                    # Remove from LRU cache
+                    self._lru_cache.pop(cache_key, None)
+                    
                     current_size -= size
+                    freed_size += size
                     removed_count += 1
-                    logger.debug(f"Removed old cache file: {filepath}")
+                    
+                    logger.debug(f"Evicted LRU cache file: {os.path.basename(filepath)}")
+                    
                 except Exception as e:
-                    logger.warning(f"Error removing cache file {filepath}: {e}")
+                    logger.warning(f"Error evicting cache file {filepath}: {e}")
             
             if removed_count > 0:
-                logger.info(f"Cache cleanup: removed {removed_count} files, freed {(total_size - current_size) / (1024 * 1024):.1f} MB")
-            
+                logger.info(f"LRU eviction: removed {removed_count} files, freed {freed_size / (1024 * 1024):.1f} MB")
+                
         except Exception as e:
-            logger.error(f"Error during cache cleanup: {e}")
+            logger.error(f"Error during LRU eviction: {e}")
     
     def clear_cache(self):
         """Clear all cached images"""

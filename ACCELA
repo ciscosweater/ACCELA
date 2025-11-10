@@ -6,10 +6,16 @@ cd "$(dirname "$(readlink -f "$0")")"
 SCRIPT_DIR="$(pwd)"
 
 # This Activates The Virtual Enviroment.
-if [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
+if [ -f "$SCRIPT_DIR/venv/bin/activate" ]; then
+    source "$SCRIPT_DIR/venv/bin/activate"
+elif [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
     source "$SCRIPT_DIR/.venv/bin/activate"
 else
-    echo "Error: Virtual environment not found at $SCRIPT_DIR/.venv"
+    echo "Error: Virtual environment not found at $SCRIPT_DIR/venv or $SCRIPT_DIR/.venv"
+    echo "Please create a virtual environment first:"
+    echo "  python3 -m venv venv"
+    echo "  source venv/bin/activate"
+    echo "  pip install -r requirements.txt"
     exit 1
 fi
 

@@ -17,7 +17,9 @@ from utils.settings import (
     is_steam_schema_enabled,
     should_auto_setup_credentials,
     get_slssteam_setting,
-    set_slssteam_setting
+    set_slssteam_setting,
+    get_logging_setting,
+    set_logging_setting
 )
 
 logger = logging.getLogger(__name__)
@@ -50,36 +52,44 @@ class ModernDialog(QDialog):
         
     def _setup_modern_style(self):
         """Apply modern styling to dialog."""
-        self.setStyleSheet("""
-            QDialog {
+        from .theme import theme
+        self.setStyleSheet(f"""
+            QDialog {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                                          stop:0 #1E1E1E, stop:1 #282828);
-                border: 2px solid #C06C84;
-                color: #C06C84;
-            }
-            QLabel {
-                color: #C06C84;
+                    stop:0 {theme.colors.BACKGROUND}, stop:1 {theme.colors.SURFACE});
+                border: 2px solid {theme.colors.PRIMARY};
+                color: {theme.colors.TEXT_PRIMARY};
+                border-radius: 8px;
+            }}
+            QLabel {{
+                color: {theme.colors.TEXT_PRIMARY};
                 font-weight: 500;
                 padding: 4px;
-            }
-            QListWidget {
-                background: rgba(40, 40, 40, 0.8);
-                border: 1px solid #C06C84;
+            }}
+            QListWidget {{
+                background: {theme.colors.SURFACE};
+                border: 1px solid {theme.colors.BORDER};
                 padding: 4px;
-                color: #C06C84;
-            }
-            QListWidget::item {
+                color: {theme.colors.TEXT_PRIMARY};
+                border-radius: 6px;
+            }}
+            QListWidget::item {{
                 padding: 8px;
                 margin: 2px;
-            }
-            QListWidget::item:selected {
+                background: {theme.colors.SURFACE_LIGHT};
+                border: 1px solid {theme.colors.BORDER};
+                border-radius: 4px;
+            }}
+            QListWidget::item:selected {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
-                                          stop:0 #C06C84, stop:1 #D07C94);
-                color: #1E1E1E;
-            }
-            QListWidget::item:hover {
-                background: rgba(192, 108, 132, 0.3);
-            }
+                    stop:0 {theme.colors.PRIMARY}, stop:1 {theme.colors.PRIMARY_LIGHT});
+                color: {theme.colors.TEXT_ON_PRIMARY};
+                border: 1px solid {theme.colors.PRIMARY};
+            }}
+            QListWidget::item:hover {{
+                background: {theme.colors.SURFACE_LIGHT};
+                border: 1px solid {theme.colors.PRIMARY};
+            }}
         """)
         
     def _setup_animations(self):
@@ -117,7 +127,8 @@ class SettingsDialog(ModernDialog):
         
         # Title
         title = AnimatedLabel("⚙️ Application Settings")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #C06C84;")
+        from .theme import theme
+        title.setStyleSheet(f"font-size: 18px; font-weight: bold; color: {theme.colors.TEXT_ACCENT};")
         main_layout.addWidget(title)
         
         # Create scroll area for settings
@@ -147,7 +158,8 @@ class SettingsDialog(ModernDialog):
         sls_layout = QVBoxLayout(sls_frame)
         
         sls_title = QLabel("🎮 SLSsteam Integration")
-        sls_title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        from .theme import theme
+        sls_title.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {theme.colors.TEXT_ACCENT};")
         sls_layout.addWidget(sls_title)
         
         self.sls_auto_check_checkbox = CustomCheckBox("Auto-check SLSsteam Status")
@@ -168,7 +180,8 @@ class SettingsDialog(ModernDialog):
         # Refresh interval setting
         interval_layout = QHBoxLayout()
         interval_label = QLabel("Status Refresh Interval:")
-        interval_label.setStyleSheet("color: #C06C84; font-size: 11px;")
+        from .theme import theme
+        interval_label.setStyleSheet(f"color: {theme.colors.TEXT_SECONDARY}; font-size: 11px;")
         interval_layout.addWidget(interval_label)
         
         self.sls_refresh_combo = QComboBox()
@@ -194,7 +207,8 @@ class SettingsDialog(ModernDialog):
         schema_layout = QVBoxLayout(schema_frame)
         
         schema_title = QLabel("🏆 SLScheevo Schema Generator")
-        schema_title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        from .theme import theme
+        schema_title.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {theme.colors.TEXT_ACCENT};")
         schema_layout.addWidget(schema_title)
         
         self.steam_schema_enabled_checkbox = CustomCheckBox("Enable SLScheevo Schema Generation")
@@ -210,7 +224,8 @@ class SettingsDialog(ModernDialog):
         # SLScheevo username setting
         username_layout = QHBoxLayout()
         username_label = QLabel("SLScheevo Username:")
-        username_label.setStyleSheet("color: #C06C84; font-size: 11px;")
+        from .theme import theme
+        username_label.setStyleSheet(f"color: {theme.colors.TEXT_SECONDARY}; font-size: 11px;")
         username_layout.addWidget(username_label)
         
         self.slscheevo_username_edit = QLineEdit()
@@ -230,12 +245,54 @@ class SettingsDialog(ModernDialog):
         
         scroll_layout.addWidget(schema_frame)
         
+        # Logging Section
+        logging_frame = ModernFrame()
+        logging_layout = QVBoxLayout(logging_frame)
+        
+        logging_title = QLabel("📝 Logging Configuration")
+        from .theme import theme
+        logging_title.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {theme.colors.TEXT_ACCENT};")
+        logging_layout.addWidget(logging_title)
+        
+        self.simple_mode_checkbox = CustomCheckBox("Simplified Log Format")
+        self.simple_mode_checkbox.setChecked(bool(get_logging_setting("simple_mode", False)))
+        self.simple_mode_checkbox.setToolTip("Use simplified format: 'LEVEL: message' instead of full timestamp and module info")
+        logging_layout.addWidget(self.simple_mode_checkbox)
+        
+        # Log level setting
+        level_layout = QHBoxLayout()
+        level_label = QLabel("Log Level:")
+        from .theme import theme
+        level_label.setStyleSheet(f"color: {theme.colors.TEXT_SECONDARY}; font-size: 11px;")
+        level_layout.addWidget(level_label)
+        
+        self.log_level_combo = QComboBox()
+        self.log_level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
+        current_level = str(get_logging_setting("level", "INFO"))
+        index = self.log_level_combo.findText(current_level.upper())
+        if index >= 0:
+            self.log_level_combo.setCurrentIndex(index)
+        self.log_level_combo.setToolTip("Minimum log level to display (DEBUG shows everything, CRITICAL shows only errors)")
+        level_layout.addWidget(self.log_level_combo)
+        
+        logging_layout.addLayout(level_layout)
+        
+        # Info label
+        info_label = QLabel("💡 File 'app.log' always saves complete DEBUG logs")
+        from .theme import theme
+        info_label.setStyleSheet(f"color: {theme.colors.TEXT_DISABLED}; font-size: 10px; font-style: italic;")
+        info_label.setWordWrap(True)
+        logging_layout.addWidget(info_label)
+        
+        scroll_layout.addWidget(logging_frame)
+        
         # DRM Removal Section
         drm_frame = ModernFrame()
         drm_layout = QVBoxLayout(drm_frame)
         
         drm_title = QLabel("🔓 DRM Removal")
-        drm_title.setStyleSheet("font-size: 14px; font-weight: bold;")
+        from .theme import theme
+        drm_title.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {theme.colors.TEXT_ACCENT};")
         drm_layout.addWidget(drm_title)
         
         self.steamless_enabled_checkbox = CustomCheckBox("Enable Steamless DRM Removal")
@@ -323,24 +380,29 @@ class SettingsDialog(ModernDialog):
     def _show_help(self):
         """Show settings help dialog."""
         help_text = """
-Settings Help:
+ Settings Help:
 
-🎮 SLSsteam Integration
-• Enables compatibility with SLSsteam wrapper
-• Required for Linux Steam integration
+ 🎮 SLSsteam Integration
+ • Enables compatibility with SLSsteam wrapper
+ • Required for Linux Steam integration
 
-🏆 Steam Schema Generator  
-• Auto-generates achievement schemas
-• Requires SLScheevo login credentials
-• Configure username or leave empty to auto-detect
+ 🏆 Steam Schema Generator  
+ • Auto-generates achievement schemas
+ • Requires SLScheevo login credentials
+ • Configure username or leave empty to auto-detect
 
-🔓 DRM Removal
-• Removes Steam DRM from executables
-• Makes games playable without Steam client
+ 🔓 DRM Removal
+ • Removes Steam DRM from executables
+ • Makes games playable without Steam client
 
-Keyboard Shortcuts:
-F1 - Show this help
-Ctrl+S - Open Settings
+ 📝 Logging Configuration
+ • Simplified format: 'ERROR: message' vs full timestamp
+ • Log levels: DEBUG (all), INFO (normal), WARNING/ERROR/CRITICAL (less)
+ • File 'app.log' always saves complete DEBUG logs for troubleshooting
+
+ Keyboard Shortcuts:
+ F1 - Show this help
+ Ctrl+S - Open Settings
         """
         QMessageBox.information(self, "Settings Help", help_text.strip())
 
@@ -371,6 +433,15 @@ Ctrl+S - Open Settings
         self.settings.setValue("steamless_enabled", self.steamless_enabled_checkbox.isChecked())
         logger.info(f"Steamless DRM removal setting changed to: {self.steamless_enabled_checkbox.isChecked()}")
         
+        # Save logging settings
+        set_logging_setting("simple_mode", self.simple_mode_checkbox.isChecked())
+        set_logging_setting("level", self.log_level_combo.currentText())
+        logger.info(f"Logging settings updated: simple_mode={self.simple_mode_checkbox.isChecked()}, level={self.log_level_combo.currentText()}")
+        
+        # Apply logging changes immediately
+        from utils.logger import update_logging_mode
+        update_logging_mode()
+        
         logger.info("Enhanced settings updated successfully.")
         super().accept()
 
@@ -400,11 +471,13 @@ class DepotSelectionDialog(ModernDialog):
         self.header_label.setMinimumHeight(215)
         self.header_label.setMaximumHeight(215)
         self.header_label.setScaledContents(False)
-        self.header_label.setStyleSheet("""
-            QLabel {
-                border: 1px solid #C06C84;
-                background: #1E1E1E;
-            }
+        from .theme import theme
+        self.header_label.setStyleSheet(f"""
+            QLabel {{
+                border: 1px solid {theme.colors.BORDER};
+                background: {theme.colors.SURFACE};
+                border-radius: 6px;
+            }}
         """)
         self._fetch_header_image(app_id)
         
@@ -440,30 +513,32 @@ class DepotSelectionDialog(ModernDialog):
         self.list_widget.itemClicked.connect(self._on_item_clicked)
         
         # Set better styling for list items to prevent overlap
-        self.list_widget.setStyleSheet("""
-            QListWidget {
-                background: #282828;
-                border: 1px solid #404040;
+        from .theme import theme
+        self.list_widget.setStyleSheet(f"""
+            QListWidget {{
+                background: {theme.colors.SURFACE};
+                border: 1px solid {theme.colors.BORDER};
                 border-radius: 6px;
                 padding: 4px;
-            }
-            QListWidget::item {
-                background: #333333;
-                border: 1px solid #505050;
+            }}
+            QListWidget::item {{
+                background: {theme.colors.SURFACE_LIGHT};
+                border: 1px solid {theme.colors.BORDER};
                 border-radius: 4px;
                 padding: 8px;
                 margin: 2px;
                 min-height: 32px;
-                color: #C06C84;
-            }
-            QListWidget::item:hover {
-                background: #3A3A3A;
-                border: 1px solid #C06C84;
-            }
-            QListWidget::item:selected {
-                background: #C06C84;
-                color: #FFFFFF;
-            }
+                color: {theme.colors.TEXT_PRIMARY};
+            }}
+            QListWidget::item:hover {{
+                background: {theme.colors.SURFACE_LIGHT};
+                border: 1px solid {theme.colors.PRIMARY};
+            }}
+            QListWidget::item:selected {{
+                background: {theme.colors.PRIMARY};
+                color: {theme.colors.TEXT_ON_PRIMARY};
+                border: 1px solid {theme.colors.PRIMARY};
+            }}
         """)
         
         # Calculate optimal height based on number of depots
@@ -487,7 +562,8 @@ class DepotSelectionDialog(ModernDialog):
         
         # Status label
         self.status_label = QLabel(f"Found {len(self.depots)} depots")
-        self.status_label.setStyleSheet("color: #808080; font-style: italic;")
+        from .theme import theme
+        self.status_label.setStyleSheet(f"color: {theme.colors.TEXT_SECONDARY}; font-style: italic;")
         main_layout.addWidget(self.status_label)
         
         # Buttons
@@ -592,7 +668,8 @@ class SteamLibraryDialog(ModernDialog):
         
         # Title
         title = AnimatedLabel("📁 Select Steam Library")
-        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #C06C84;")
+        from .theme import theme
+        title.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {theme.colors.TEXT_ACCENT};")
         main_layout.addWidget(title)
         
         # Library list
@@ -651,7 +728,8 @@ class DlcSelectionDialog(ModernDialog):
         
         # Title
         title = AnimatedLabel("🎮 Select DLC")
-        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #C06C84;")
+        from .theme import theme
+        title.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {theme.colors.TEXT_ACCENT};")
         main_layout.addWidget(title)
         
         # Select all/none buttons
@@ -684,30 +762,33 @@ class DlcSelectionDialog(ModernDialog):
         self.list_widget.itemClicked.connect(self._on_item_clicked)
         
         # Set better styling for list items to prevent overlap
-        self.list_widget.setStyleSheet("""
-            QListWidget {
-                background: #282828;
-                border: 1px solid #404040;
+        from .theme import theme
+        self.list_widget.setStyleSheet(f"""
+            QListWidget {{
+                background: {theme.colors.SURFACE};
+                border: 1px solid {theme.colors.BORDER};
                 border-radius: 6px;
                 padding: 4px;
-            }
-            QListWidget::item {
-                background: #333333;
-                border: 1px solid #505050;
+            }}
+            QListWidget::item {{
+                background: {theme.colors.SURFACE_LIGHT};
+                border: 1px solid {theme.colors.BORDER};
                 border-radius: 4px;
                 padding: 8px;
                 margin: 2px;
                 min-height: 32px;
-                color: #C06C84;
-            }
-            QListWidget::item:hover {
-                background: #3A3A3A;
-                border: 1px solid #C06C84;
-            }
-            QListWidget::item:selected {
-                background: #C06C84;
-                color: #FFFFFF;
-            }
+                color: {theme.colors.TEXT_PRIMARY};
+            }}
+            QListWidget::item:hover {{
+                background: {theme.colors.SURFACE_LIGHT};
+                border: 1px solid {theme.colors.PRIMARY};
+            }}
+            QListWidget::item:selected {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                    stop:0 {theme.colors.PRIMARY}, stop:1 {theme.colors.PRIMARY_LIGHT});
+                color: {theme.colors.TEXT_ON_PRIMARY};
+                border: 1px solid {theme.colors.PRIMARY};
+            }}
         """)
         
         # Calculate optimal height based on number of DLCs
@@ -731,7 +812,8 @@ class DlcSelectionDialog(ModernDialog):
         
         # Status label
         self.status_label = QLabel(f"Found {len(self.dlcs)} DLCs")
-        self.status_label.setStyleSheet("color: #808080; font-style: italic;")
+        from .theme import theme
+        self.status_label.setStyleSheet(f"color: {theme.colors.TEXT_SECONDARY}; font-style: italic;")
         main_layout.addWidget(self.status_label)
 
         # Buttons

@@ -1,7 +1,7 @@
 import logging
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QFont
+from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QFont, QMouseEvent
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +11,7 @@ class CheckBoxWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._checked = False
-        self.setFixedSize(18, 18)  # Tamanho reduzido
+        self.setFixedSize(20, 20)  # Tamanho aumentado para melhor visualização
         self.setCursor(Qt.CursorShape.PointingHandCursor)
     
     def isChecked(self):
@@ -22,7 +22,7 @@ class CheckBoxWidget(QWidget):
             self._checked = checked
             self.update()
     
-    def paintEvent(self, event):
+    def paintEvent(self, a0):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
@@ -38,14 +38,14 @@ class CheckBoxWidget(QWidget):
             brush = QBrush(QColor('#1E1E1E'))
             painter.setBrush(brush)
         
-        # Draw rounded rectangle (ajustado para 18x18)
-        painter.drawRoundedRect(2, 2, 14, 14, 3, 3)
+        # Draw rounded rectangle (ajustado para 20x20)
+        painter.drawRoundedRect(2, 2, 16, 16, 3, 3)
         
-        # Draw checkmark if checked (ajustado para 18x18)
+        # Draw checkmark if checked (ajustado para 20x20)
         if self._checked:
             painter.setPen(QPen(QColor('white'), 2))
-            painter.drawLine(5, 9, 7, 11)
-            painter.drawLine(7, 11, 12, 6)
+            painter.drawLine(6, 10, 8, 12)
+            painter.drawLine(8, 12, 13, 7)
         
         painter.end()
 
@@ -96,12 +96,12 @@ class CustomCheckBox(QWidget):
         if old_checked != checked:
             self.stateChanged.emit(1 if checked else 0)
     
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
+    def mousePressEvent(self, a0):
+        if a0 and a0.button() == Qt.MouseButton.LeftButton:
             self.setChecked(not self.isChecked())
-            event.accept()
+            a0.accept()
         else:
-            super().mousePressEvent(event)
+            super().mousePressEvent(a0)
     
     def setText(self, text):
         """Update checkbox text"""
@@ -112,7 +112,8 @@ class CustomCheckBox(QWidget):
             self.label = QLabel(text)
             self.label.setCursor(Qt.CursorShape.PointingHandCursor)
             layout = self.layout()
-            layout.insertWidget(1, self.label)
+            if layout:
+                layout.addWidget(self.label)
         self._text = text
     
     def text(self):
