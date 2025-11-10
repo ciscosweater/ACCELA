@@ -29,7 +29,7 @@ class DirectorySizeWorker(QThread):
         self.size_calculated.emit(size)
     
     @staticmethod
-    def _calculate_directory_size_optimized(path: str, max_depth: int = 3) -> int:
+    def _calculate_directory_size_optimized(path: str, max_depth: int = 20) -> int:
         """Calcula tamanho usando os.scandir com cache e otimizações avançadas."""
         # Validar path antes de processar
         if not path or not isinstance(path, str):
@@ -67,10 +67,7 @@ class DirectorySizeWorker(QThread):
         try:
             with os.scandir(path) as entries:
                 for entry in entries:
-                    # Limitar número de arquivos para evitar travamento em diretórios muito grandes
-                    if file_count > 2000:  # Aumentado para 2000 para melhor precisão
-                        logger.warning(f"File count limit reached for {path}, calculation may be incomplete")
-                        break
+                    # Removido limite de arquivos para cálculo preciso - jogos grandes precisam de contagem completa
                         
                     try:
                         stat_info = entry.stat()
@@ -123,7 +120,7 @@ class DirectorySizeWorker(QThread):
         if logger.isEnabledFor(logging.DEBUG) and (file_count > 100 or dir_count > 10):
             logger.debug(f"Directory stats for {os.path.basename(path)}: "
                         f"{file_count} files, {dir_count} subdirs, {large_files} large files, "
-                        f"total size: {GameManager._format_size(total_size)}")
+                        f"depth: {20-max_depth}/20, total size: {GameManager._format_size(total_size)}")
         
         return total_size
     
