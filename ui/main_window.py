@@ -351,8 +351,8 @@ class MainWindow(QMainWindow):
         self.title_bar.select_file_button.setVisible(False)
 
         self.zip_task = ProcessZipTask()
-        runner = TaskRunner()
-        worker = runner.run(self.zip_task.run, zip_path)
+        self.task_runner = TaskRunner()  # Keep reference to prevent GC
+        worker = self.task_runner.run(self.zip_task.run, zip_path)
         worker.finished.connect(self._on_zip_processed)
         worker.error.connect(self._handle_task_error)
 
@@ -598,9 +598,11 @@ class MainWindow(QMainWindow):
         _, error_value, _ = error_info
         logger.error(f"Task error occurred: {error_value}", exc_info=True)
         QMessageBox.critical(self, "Error", f"An error occurred: {error_value}")
-        # 🐛 FIX: Clean up ZIP task reference on error
+        # 🐛 FIX: Clean up ZIP task and runner references on error
         if hasattr(self, 'zip_task'):
             self.zip_task = None
+        if hasattr(self, 'task_runner'):
+            self.task_runner = None
         self._reset_ui_state()
         self._stop_speed_monitor()
 
@@ -625,6 +627,7 @@ class MainWindow(QMainWindow):
         self.slssteam_mode_was_active = False
         self._steam_restart_prompted = False  # Reset flag for next download
         self.zip_task = None  # Ensure ZIP task is cleaned up
+        self.task_runner = None  # Clean up task runner reference
 
         logger.debug("UI state fully reset, ready for next operation")
 
