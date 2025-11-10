@@ -37,32 +37,31 @@ class MinimalDownloadWidget(QWidget):
     def _setup_ui(self):
         """Configure minimalist interface with optimized layout"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(0, 8, 0, 8)
+        layout.setSpacing(6)
 
-        # Container principal com borda sutil
+        # Container principal sem fundo
         self.setStyleSheet(f"""
             QWidget {{
-                background: {theme.colors.SURFACE};
-                border: 1px solid {theme.colors.BORDER};
-                border-radius: 8px;
-                {theme.shadows.get_shadow(theme.shadows.SUBTLE)};
+                background: transparent;
+                border: none;
+                border-radius: 0px;
             }}
         """)
 
-        # Linha 1: Imagem + Nome do jogo + status
+        # Linha 1: Imagem + Nome do jogo
         header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setContentsMargins(16, 0, 16, 0)
         header_layout.setSpacing(12)
 
-        # Container para imagem do jogo
+        # Container para imagem do jogo - proporção Steam header (920x430 ≈ 2.14:1)
         self.game_image_label = QLabel()
-        self.game_image_label.setFixedSize(40, 40)
+        self.game_image_label.setFixedSize(120, 56)  # Proporção Steam header reduzida
         self.game_image_label.setStyleSheet(f"""
             QLabel {{
-                background: {theme.colors.BACKGROUND};
-                border: 1px solid {theme.colors.BORDER};
-                border-radius: 6px;
+                background: transparent;
+                border: none;
+                border-radius: 4px;
             }}
         """)
         self.game_image_label.hide()
@@ -72,8 +71,9 @@ class MinimalDownloadWidget(QWidget):
         self.game_name_label.setStyleSheet(f"""
             QLabel {{
                 color: {theme.colors.TEXT_PRIMARY};
-                font-size: 14px;
-                font-weight: 600;
+                font-size: 18px;
+                font-weight: 700;
+                background: transparent;
             }}
         """)
         self.game_name_label.hide()
@@ -85,12 +85,13 @@ class MinimalDownloadWidget(QWidget):
                 color: {theme.colors.TEXT_SECONDARY};
                 font-size: 12px;
                 font-weight: 500;
+                background: transparent;
             }}
         """)
+        self.status_label.hide()
 
         header_layout.addWidget(self.game_image_label)
         header_layout.addWidget(self.game_name_label)
-        header_layout.addWidget(self.status_label)
         header_layout.addStretch()
 
         # Linha 2: Barra de progresso
@@ -119,19 +120,10 @@ class MinimalDownloadWidget(QWidget):
 
         # Linha 3: Status detalhado + velocidade + controles
         bottom_layout = QHBoxLayout()
-        bottom_layout.setContentsMargins(0, 4, 0, 0)
+        bottom_layout.setContentsMargins(16, 4, 16, 0)
         bottom_layout.setSpacing(12)
 
-        # Status detalhado
-        self.detail_status_label = QLabel("")
-        self.detail_status_label.setStyleSheet(f"""
-            QLabel {{
-                color: {theme.colors.TEXT_SECONDARY};
-                font-size: 10px;
-                font-weight: 400;
-            }}
-        """)
-        self.detail_status_label.hide()
+
 
         # Velocidade label
         self.speed_label = QLabel("")
@@ -140,21 +132,21 @@ class MinimalDownloadWidget(QWidget):
                 color: {theme.colors.PRIMARY};
                 font-size: 11px;
                 font-weight: 600;
+                background: transparent;
             }}
         """)
         self.speed_label.hide()
 
-        # Minimalist buttons with icons
-        self.pause_btn = self._create_control_button("⏸", "pause")
-        self.resume_btn = self._create_control_button("▶", "resume")
-        self.cancel_btn = self._create_control_button("✕", "cancel")
+        # Minimalist buttons with text
+        self.pause_btn = self._create_control_button("Pause", "pause")
+        self.resume_btn = self._create_control_button("Resume", "resume")
+        self.cancel_btn = self._create_control_button("Cancel", "cancel")
 
         # Hide buttons initially
         self.pause_btn.hide()
         self.resume_btn.hide()
         self.cancel_btn.hide()
 
-        bottom_layout.addWidget(self.detail_status_label)
         bottom_layout.addStretch()
         bottom_layout.addWidget(self.speed_label)
         bottom_layout.addWidget(self.pause_btn)
@@ -171,10 +163,10 @@ class MinimalDownloadWidget(QWidget):
         self.resume_btn.clicked.connect(self.resume_clicked.emit)
         self.cancel_btn.clicked.connect(self.cancel_clicked.emit)
 
-    def _create_control_button(self, icon, button_type):
+    def _create_control_button(self, text, button_type):
         """Create minimalist control button"""
-        btn = QPushButton(icon)
-        btn.setFixedSize(24, 24)
+        btn = QPushButton(text)
+        btn.setFixedSize(80, 30)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         # Estilo base
@@ -183,9 +175,9 @@ class MinimalDownloadWidget(QWidget):
                 background: {theme.colors.SURFACE};
                 color: {theme.colors.TEXT_SECONDARY};
                 border: 1px solid {theme.colors.BORDER};
-                border-radius: 12px;
-                font-size: 10px;
-                font-weight: bold;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
             }}
             QPushButton:hover {{
                 background: %s;
@@ -243,7 +235,7 @@ class MinimalDownloadWidget(QWidget):
         
         # Mostrar imagem do jogo se fornecida
         if game_image:
-            self.game_image_label.setPixmap(game_image.scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            self.game_image_label.setPixmap(game_image.scaled(120, 56, Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation))
             self.game_image_label.show()
         else:
             self.game_image_label.hide()
@@ -252,18 +244,10 @@ class MinimalDownloadWidget(QWidget):
         if game_name:
             self.game_name_label.setText(game_name)
             self.game_name_label.show()
-            self.status_label.setText("Downloading")
         else:
             self.game_name_label.hide()
-            self.status_label.setText("Downloading")
             
-        self.status_label.setStyleSheet(f"""
-            QLabel {{
-                color: {theme.colors.PRIMARY};
-                font-size: 12px;
-                font-weight: 600;
-            }}
-        """)
+
         
         self.progress_bar.setStyleSheet(f"""
             QWidget {{
@@ -273,7 +257,6 @@ class MinimalDownloadWidget(QWidget):
         """)
         
         self.speed_label.show()
-        self.detail_status_label.show()
         self.pause_btn.show()
         self.pause_btn.setEnabled(True)
         self.resume_btn.hide()
@@ -283,14 +266,6 @@ class MinimalDownloadWidget(QWidget):
     def set_paused_state(self):
         """Configure paused state"""
         self.current_state = "paused"
-        self.status_label.setText("Paused")
-        self.status_label.setStyleSheet(f"""
-            QLabel {{
-                color: {theme.colors.WARNING};
-                font-size: 12px;
-                font-weight: 600;
-            }}
-        """)
         
         self.progress_bar.setStyleSheet(f"""
             QWidget {{
@@ -307,14 +282,6 @@ class MinimalDownloadWidget(QWidget):
     def set_completed_state(self):
         """Configure completed state"""
         self.current_state = "completed"
-        self.status_label.setText("Completed")
-        self.status_label.setStyleSheet(f"""
-            QLabel {{
-                color: {theme.colors.SUCCESS};
-                font-size: 12px;
-                font-weight: 600;
-            }}
-        """)
         
         self.progress_bar.setStyleSheet(f"""
             QWidget {{
@@ -324,7 +291,6 @@ class MinimalDownloadWidget(QWidget):
         """)
         
         self.speed_label.hide()
-        self.detail_status_label.hide()
         self.pause_btn.hide()
         self.resume_btn.hide()
         self.cancel_btn.hide()
@@ -333,14 +299,6 @@ class MinimalDownloadWidget(QWidget):
         """Configure error state"""
         self.current_state = "error"
         self.game_image_label.hide()
-        self.status_label.setText(message)
-        self.status_label.setStyleSheet(f"""
-            QLabel {{
-                color: {theme.colors.ERROR};
-                font-size: 12px;
-                font-weight: 600;
-            }}
-        """)
         
         self.progress_bar.setStyleSheet(f"""
             QWidget {{
@@ -350,7 +308,6 @@ class MinimalDownloadWidget(QWidget):
         """)
         
         self.speed_label.hide()
-        self.detail_status_label.hide()
         self.pause_btn.hide()
         self.resume_btn.hide()
         self.cancel_btn.show()
@@ -364,14 +321,6 @@ class MinimalDownloadWidget(QWidget):
         self.current_state = "idle"
         self.game_image_label.hide()
         self.game_name_label.hide()
-        self.status_label.setText("Ready to download")
-        self.status_label.setStyleSheet(f"""
-            QLabel {{
-                color: {theme.colors.TEXT_SECONDARY};
-                font-size: 12px;
-                font-weight: 500;
-            }}
-        """)
         
         self.progress_bar.setStyleSheet(f"""
             QWidget {{
@@ -381,7 +330,6 @@ class MinimalDownloadWidget(QWidget):
         """)
         
         self.speed_label.hide()
-        self.detail_status_label.hide()
         self.pause_btn.hide()
         self.resume_btn.hide()
         self.cancel_btn.hide()
@@ -397,17 +345,11 @@ class MinimalDownloadWidget(QWidget):
         self.speed_label.setText(speed_text)
 
     def update_status(self, message):
-        """Update detailed status message"""
-        if self.current_state == "downloading":
-            self.detail_status_label.setText(message)
-        elif self.current_state == "paused":
-            self.detail_status_label.setText(message)
-        else:
-            self.detail_status_label.setText(message)
+        """Update detailed status message - removed"""
+        pass
 
     def reset(self):
         """Reset widget to initial state"""
         self._set_idle_state()
         self._update_progress_bar(0)
         self.speed_label.setText("")
-        self.detail_status_label.setText("")

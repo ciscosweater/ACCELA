@@ -232,7 +232,6 @@ class MainWindow(QMainWindow):
 
         # Widget minimalista de download (novo componente unificado)
         self.minimal_download_widget.setVisible(False)
-        self.minimal_download_widget.setMaximumWidth(500)  # Aumentado para acomodar imagem
         main_layout.addWidget(self.minimal_download_widget, 0, Qt.AlignmentFlag.AlignCenter)
         
         # Enhanced progress bar (legado - completamente removido)
@@ -249,17 +248,7 @@ class MainWindow(QMainWindow):
         # Initialize notification system
         self.notification_manager = NotificationManager(self)
 
-        self.speed_label = QLabel("")
-        self.speed_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.speed_label.setStyleSheet("""
-            QLabel {
-                font-size: 9px;
-                color: #808080;
-                padding: 2px 5px;
-            }
-        """)
-        self.speed_label.setVisible(False)
-        main_layout.addWidget(self.speed_label)
+
 
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
@@ -544,7 +533,6 @@ class MainWindow(QMainWindow):
             self.current_movie.start()
         
         # Configurar UI para download com widget minimalista
-        self.speed_label.setVisible(True)
         
         # Mostrar widget minimalista de download
         game_name = self.game_data.get('game_name', 'Unknown Game') if self.game_data else None
@@ -649,7 +637,7 @@ class MainWindow(QMainWindow):
 
         self.drop_text_label.setVisible(True)
         self.drop_text_label.setText("Drag and Drop Zip here")
-        self.speed_label.setVisible(False)
+
         self.game_image_container.setVisible(False)
         self.title_bar.select_file_button.setVisible(True)  # Show button again
         self.minimal_download_widget.setVisible(False)  # Esconder widget minimalista
@@ -666,7 +654,6 @@ class MainWindow(QMainWindow):
 
     def _start_speed_monitor(self):
         self.speed_monitor_task = SpeedMonitorTask()
-        self.speed_monitor_task.speed_update.connect(self.speed_label.setText)
         self.speed_monitor_task.speed_update.connect(self.minimal_download_widget.update_speed)
         runner = TaskRunner()
         runner.run(self.speed_monitor_task.run)
