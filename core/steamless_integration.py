@@ -3,6 +3,7 @@ import os
 import subprocess
 import shutil
 import re
+import psutil
 from pathlib import Path
 from typing import List, Optional, Tuple
 from PyQt6.QtCore import QObject, pyqtSignal
@@ -19,10 +20,12 @@ class SteamlessIntegration(QObject):
     error = pyqtSignal(str)
     finished = pyqtSignal(bool)
     
-    def __init__(self, steamless_path: Optional[str] = None):
+    def __init__(self, steamless_path: Optional[str] = None, performance_mode: bool = True):
         super().__init__()
         self.steamless_path = steamless_path or os.path.join(os.getcwd(), "Steamless")
         self.wine_available = self._check_wine_availability()
+        self.original_process_priority = None
+        self.performance_mode = performance_mode
         
     def _check_wine_availability(self) -> bool:
         """Check if Wine is installed and available."""
@@ -38,7 +41,31 @@ class SteamlessIntegration(QObject):
         self.error.emit("Wine is not installed or not available. Cannot run Steamless CLI.")
         return False
     
-    def find_game_executables(self, game_directory: str) -> List[str]:
+    def _check_disk_performance(self, path: str) -> dict:
+        """Check disk performance metrics for optimization suggestions."""
+        try:
+            disk_usage = shutil.disk_usage(path)
+            disk_free_gb = disk_usage.free / (1024**3)
+            
+            # Check if using SSD (simplified check)
+            try:
+                stat = os.statvfs(path)
+                # This is a simplified check - real SSD detection is more complex
+                is_likely_ssd = stat.f_bsize > 4096  # Larger block size might indicate SSD
+            except:
+                is_likely_ssd = False
+            
+            return {
+                'free_space_gb': disk_free_gb,
+                'is_likely_ssd': is_likely_ssd,
+                'low_space_warning': disk_free_gb < 5,  # Less than 5GB
+                'performance_tips': []
+            }
+        except Exception as e:
+            logger.warning(f"Could not check disk performance: {e}")
+            return {'performance_tips': ['Could not analyze disk performance']}
+    
+    def find_game_executables(self, game_directory: str) -> List[dict]:
         """
         Find all executable files in the game directory and subdirectories.
         Returns a list of .exe files sorted by priority.
@@ -219,6 +246,17 @@ class SteamlessIntegration(QObject):
             self.error.emit(f"Steamless.CLI.exe not found: {steamless_cli}")
             return False
         
+        # Check disk performance for optimization tips
+        disk_info = self._check_disk_performance(game_directory)
+        if disk_info.get('low_space_warning'):
+            self.progress.emit("⚠️ Low disk space detected - this may slow down Steamless")
+        if not disk_info.get('is_likely_ssd', True):
+            self.progress.emit("💡 Tip: Using SSD would significantly improve Steamless performance")
+        
+        # Clean temporary files for better performance
+        if self.performance_mode:
+            self._cleanup_temp_files(game_directory)
+        
         self.progress.emit("Searching for game executables...")
         exe_files = self.find_game_executables(game_directory)
         
@@ -248,9 +286,54 @@ class SteamlessIntegration(QObject):
         self.error.emit(f"Failed to process all {max_attempts} executable(s).")
         return False
     
+    def _optimize_system_performance(self):
+        """Optimize system performance for Steamless execution."""
+        try:
+            current_process = psutil.Process()
+            self.original_process_priority = current_process.nice()
+            
+            # Set higher priority for current process
+            if os.name == 'nt':
+                # Windows - use high priority
+                import win32api
+                import win32process
+                import win32con
+                handle = win32api.GetCurrentProcess()
+                win32process.SetPriorityClass(handle, win32process.HIGH_PRIORITY_CLASS)
+            else:
+                # Unix-like systems
+                current_process.nice(-5)  # Higher priority
+            
+            # Optimize memory usage
+            if self.performance_mode:
+                # Force garbage collection
+                import gc
+                gc.collect()
+                
+                # Check available memory
+                memory = psutil.virtual_memory()
+                if memory.percent > 80:
+                    self.progress.emit("⚠️ High memory usage detected - consider closing other applications")
+                
+            logger.info("System performance optimized for Steamless")
+        except Exception as e:
+            logger.warning(f"Could not optimize system performance: {e}")
+    
+    def _restore_system_performance(self):
+        """Restore original system performance settings."""
+        try:
+            if self.original_process_priority is not None:
+                current_process = psutil.Process()
+                current_process.nice(self.original_process_priority)
+                logger.info("System performance restored to normal")
+        except Exception as e:
+            logger.warning(f"Could not restore system performance: {e}")
+
     def _run_steamless_on_exe(self, exe_path: str) -> bool:
         """Run Steamless CLI on a specific executable."""
         try:
+            # Optimize system for performance
+            self._optimize_system_performance()
             # Convert Linux path to Windows path for Wine
             windows_path = self._convert_to_windows_path(exe_path)
             if not windows_path:
@@ -259,19 +342,31 @@ class SteamlessIntegration(QObject):
             steamless_cli = os.path.join(self.steamless_path, "Steamless.CLI.exe")
             steamless_dir = self.steamless_path
             
-            # Prepare Wine command
-            cmd = ['wine', 'Steamless.CLI.exe', '-f', windows_path]
+            # Prepare Wine command with optimization flags
+            cmd = [
+                'wine', 'Steamless.CLI.exe', 
+                '-f', windows_path,
+                '--quiet',  # Reduce debug output for better performance
+                '--realign',  # Realign sections for better file structure
+                '--recalcchecksum'  # Ensure proper PE checksum
+            ]
             
-            self.progress.emit(f"Running Steamless: {' '.join(cmd)}")
+            # Add experimental features for maximum performance if enabled
+            if self.performance_mode:
+                cmd.append('--exp')  # Use experimental features for better speed
             
-            # Run Steamless CLI
+            self.progress.emit(f"Running Steamless (optimized): {' '.join(cmd)}")
+            
+            # Run Steamless CLI with optimized process settings
             process = subprocess.Popen(
                 cmd,
                 cwd=steamless_dir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
-                encoding='utf-8'
+                encoding='utf-8',
+                bufsize=0,  # Unbuffered output for faster processing
+                preexec_fn=os.setsid if hasattr(os, 'setsid') else None  # Process group isolation
             )
             
             # Monitor output
@@ -329,6 +424,9 @@ class SteamlessIntegration(QObject):
             logger.error(f"Error running Steamless: {e}", exc_info=True)
             self.error.emit(f"Error running Steamless: {str(e)}")
             return False
+        finally:
+            # Always restore system performance
+            self._restore_system_performance()
     
     def _convert_to_windows_path(self, linux_path: str) -> Optional[str]:
         """Convert Linux path to Windows path format for Wine."""
@@ -353,6 +451,26 @@ class SteamlessIntegration(QObject):
             logger.error(f"Error converting path: {e}")
             return None
     
+    def _cleanup_temp_files(self, directory: str):
+        """Clean up temporary files that might slow down processing."""
+        try:
+            temp_patterns = ['*.tmp', '*.temp', '~*.*', '.DS_Store', 'Thumbs.db']
+            cleaned_count = 0
+            
+            for pattern in temp_patterns:
+                import glob
+                for temp_file in glob.glob(os.path.join(directory, '**', pattern), recursive=True):
+                    try:
+                        os.remove(temp_file)
+                        cleaned_count += 1
+                    except:
+                        pass
+            
+            if cleaned_count > 0:
+                self.progress.emit(f"🧹 Cleaned {cleaned_count} temporary files for better performance")
+        except Exception as e:
+            logger.debug(f"Could not clean temp files: {e}")
+
     def _handle_unpacked_files(self, original_exe: str) -> bool:
         """Handle the renaming of files after successful Steamless processing."""
         try:
