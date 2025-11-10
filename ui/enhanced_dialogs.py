@@ -177,6 +177,11 @@ class SettingsDialog(ModernDialog):
         self.sls_auto_fix_checkbox.setToolTip("Automatically fix PlayNotOwnedGames setting without user confirmation.")
         sls_layout.addWidget(self.sls_auto_fix_checkbox)
         
+        self.slssteam_mode_checkbox = CustomCheckBox("SLSsteam Mode")
+        self.slssteam_mode_checkbox.setChecked(self.settings.value("slssteam_mode", True, type=bool))
+        self.slssteam_mode_checkbox.setToolTip("Enable SLSsteam mode to automatically select Steam library folders as destination.")
+        sls_layout.addWidget(self.slssteam_mode_checkbox)
+        
         # Refresh interval setting
         interval_layout = QHBoxLayout()
         interval_label = QLabel("Status Refresh Interval:")
@@ -412,6 +417,10 @@ class SettingsDialog(ModernDialog):
         set_slssteam_setting("auto_check", self.sls_auto_check_checkbox.isChecked())
         set_slssteam_setting("show_warnings", self.sls_show_warnings_checkbox.isChecked())
         set_slssteam_setting("auto_fix_config", self.sls_auto_fix_checkbox.isChecked())
+        
+        # Save SLSsteam mode setting
+        self.settings.setValue("slssteam_mode", self.slssteam_mode_checkbox.isChecked())
+        logger.info(f"SLSsteam mode changed to: {self.slssteam_mode_checkbox.isChecked()}")
         
         # Save refresh interval
         refresh_index = self.sls_refresh_combo.currentIndex()

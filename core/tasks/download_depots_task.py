@@ -293,7 +293,7 @@ class DownloadDepotsTask(QObject):
                 "-manifest", str(manifest_id),
                 "-manifestfile", shlex.quote(os.path.join('manifest', f"{depot_id}_{manifest_id}.manifest")),
                 "-depotkeys", shlex.quote(keys_path), "-max-downloads", "25",
-                "-dir", shlex.quote(download_dir), "-validate"
+                "-dir", shlex.quote(download_dir)
             ])
 
         return commands, skipped_depots

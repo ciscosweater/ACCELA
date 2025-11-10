@@ -24,6 +24,7 @@ from ui.asset_optimizer import AssetManager
 
 from ui.game_deletion_dialog import GameDeletionDialog
 from ui.download_controls import DownloadControls
+from ui.minimal_download_widget import MinimalDownloadWidget
 from utils.image_cache import ImageCacheManager
 # from ui.responsive_design import ResponsiveMainWindow  # Disabled temporarily
 from utils.task_runner import TaskRunner
@@ -94,7 +95,11 @@ class MainWindow(QMainWindow):
         
         # Download Manager para pause/cancel/retomada
         self.download_manager = DownloadManager()
-        self.download_controls = DownloadControls()
+        # self.download_controls = DownloadControls()  # Legado - comentado
+        
+        # Widget minimalista de download (novo componente)
+        self.minimal_download_widget = MinimalDownloadWidget()
+        self.minimal_download_widget.setVisible(False)
         
         # Controle para evitar múltiplas solicitações de reinicialização
         self._steam_restart_prompted = False
@@ -219,19 +224,27 @@ class MainWindow(QMainWindow):
         game_info_layout.addStretch()
         game_image_layout.addLayout(game_info_layout)
         
-        main_layout.addWidget(self.game_image_container, 0, Qt.AlignmentFlag.AlignCenter)
-
-        # Enhanced progress bar
-        self.progress_bar = EnhancedProgressBar()
-        self.progress_bar.setVisible(False)
-        main_layout.addWidget(self.progress_bar)
+        # game_image_container agora está integrado no widget minimalista
+        # main_layout.addWidget(self.game_image_container, 0, Qt.AlignmentFlag.AlignCenter)
         
-        # Download controls (pause/resume/cancel)
-        self.download_controls.setVisible(False)
-        self.download_controls.setMaximumWidth(350)  # Reduced width
-        self.download_controls.setMaximumHeight(80)  # Increased max height
-        self.download_controls.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        main_layout.addWidget(self.download_controls, 0, Qt.AlignmentFlag.AlignCenter)
+        # Esconder container antigo para evitar duplicação
+        self.game_image_container.hide()
+
+        # Widget minimalista de download (novo componente unificado)
+        self.minimal_download_widget.setVisible(False)
+        self.minimal_download_widget.setMaximumWidth(500)  # Aumentado para acomodar imagem
+        main_layout.addWidget(self.minimal_download_widget, 0, Qt.AlignmentFlag.AlignCenter)
+        
+        # Enhanced progress bar (legado - completamente removido)
+        # self.progress_bar = EnhancedProgressBar()
+        # self.progress_bar.setVisible(False)
+        
+        # Download controls (legado - completamente removido)
+        # self.download_controls = DownloadControls()
+        # self.download_controls.setVisible(False)
+        # self.download_controls.setMaximumWidth(350)
+        # self.download_controls.setMaximumHeight(80)
+        # self.download_controls.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         # Initialize notification system
         self.notification_manager = NotificationManager(self)
@@ -311,10 +324,10 @@ class MainWindow(QMainWindow):
         self.download_manager.state_changed.connect(self._on_download_state_changed)
         self.download_manager.depot_completed.connect(self._on_depot_completed)
         
-        # Conectar controles UI
-        self.download_controls.pause_clicked.connect(self.download_manager.pause_download)
-        self.download_controls.resume_clicked.connect(self.download_manager.resume_download)
-        self.download_controls.cancel_clicked.connect(self._confirm_cancel_download)
+        # Conectar controles UI (widget minimalista)
+        self.minimal_download_widget.pause_clicked.connect(self.download_manager.pause_download)
+        self.minimal_download_widget.resume_clicked.connect(self.download_manager.resume_download)
+        self.minimal_download_widget.cancel_clicked.connect(self._confirm_cancel_download)
         
     def _select_zip_file(self):
         """Open file dialog to select a ZIP file."""
@@ -345,9 +358,6 @@ class MainWindow(QMainWindow):
         # Show visual feedback during ZIP processing
         self.drop_text_label.setText("Processing ZIP...")
         self.drop_text_label.setVisible(True)
-        self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 0)  # Indeterminate progress
-        self.progress_bar.setValue(0)
         self.title_bar.select_file_button.setVisible(False)
 
         self.zip_task = ProcessZipTask()
@@ -359,30 +369,26 @@ class MainWindow(QMainWindow):
     def _on_download_progress(self, percentage, message):
         """Handle download progress updates"""
         if percentage > 0:
-            self.progress_bar.setValue(percentage)
+            self.minimal_download_widget.update_progress(percentage)
         if message:
             # Don't append to log_output here - the logging system already handles it
             # This prevents duplicate log messages
-            self.download_controls.update_status(message)
+            self.minimal_download_widget.update_status(message)
             
     def _on_download_paused(self):
         """Handle download pause"""
-        self.progress_bar.set_download_state("paused")
-        self.download_controls.set_paused_state()
+        self.minimal_download_widget.set_paused_state()
         self.log_output.append("⏸ Download pausado")
         
     def _on_download_resumed(self):
         """Handle download resume"""
-        self.progress_bar.set_download_state("downloading")
-        self.download_controls.set_downloading_state()
+        self.minimal_download_widget.set_downloading_state()
         self.log_output.append("▶ Download retomado")
         
     def _on_download_cancelled(self):
         """Handle download cancellation"""
         self._stop_speed_monitor()
-        self.progress_bar.set_download_state("cancelled")
-        self.download_controls.set_idle_state()
-        self.download_controls.setVisible(False)
+        self.minimal_download_widget.set_error_state("Cancelled")
         self.log_output.append("✕ Download cancelado pelo usuário")
         # Limpar sessão atual para evitar comportamento indesejado
         self.current_session = None
@@ -391,9 +397,10 @@ class MainWindow(QMainWindow):
     def _on_download_completed(self, session_id):
         """Handle download completion"""
         self._stop_speed_monitor()
-        self.progress_bar.setValue(100)
-        self.progress_bar.set_download_state("completed")
-        self.download_controls.set_completed_state()
+        # self.progress_bar.setValue(100)  # Legado - comentado
+        # self.progress_bar.set_download_state("completed")  # Legado - comentado
+        # self.download_controls.set_completed_state()  # Legado - comentado
+        self.minimal_download_widget.set_completed_state()
         self.log_output.append("✓ Download concluído com sucesso!")
         
         # Create ACF file and handle completion
@@ -446,8 +453,8 @@ class MainWindow(QMainWindow):
         self.download_controls.setVisible(False)
         
     def _on_zip_processed(self, game_data):
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(100)
+        # self.progress_bar.setRange(0, 100)  # Legado - comentado
+        # self.progress_bar.setValue(100)  # Legado - comentado
         self.game_data = game_data
         
         if self.game_data and self.game_data.get('depots'):
@@ -467,7 +474,9 @@ class MainWindow(QMainWindow):
                 return
 
             dest_path = None
-            slssteam_mode = self.settings.value("slssteam_mode", False, type=bool)
+            slssteam_mode = self.settings.value("slssteam_mode", True, type=bool)
+            
+            logger.info(f"SLSsteam mode: {slssteam_mode}")
 
             if slssteam_mode:
                 if self.game_data.get('dlcs'):
@@ -476,6 +485,7 @@ class MainWindow(QMainWindow):
                         self.game_data['selected_dlcs'] = dlc_dialog.get_selected_dlcs()
                 
                 libraries = steam_helpers.get_steam_libraries()
+                logger.info(f"Found Steam libraries: {libraries}")
                 if libraries:
                     dialog = SteamLibraryDialog(libraries, self)
                     if dialog.exec():
@@ -505,13 +515,10 @@ class MainWindow(QMainWindow):
         
         # Hide drop zone and show progress
         self.drop_text_label.setVisible(False)
-        self.progress_bar.setVisible(True)
-        self.progress_bar.setValue(0)
-        
-        # Show game image display
+        # Show game image display (integrado no widget minimalista)
         if self.game_data:
             self.game_title_label.setText(self.game_data.get('game_name', 'Unknown Game'))
-            self.game_image_container.setVisible(True)
+            # self.game_image_container.setVisible(True)  # Escondido - integrado no widget
             # Load game header image asynchronously
             self._load_game_image()
         
@@ -523,14 +530,27 @@ class MainWindow(QMainWindow):
             self.drop_label.setMovie(self.current_movie)
             self.current_movie.start()
         
-        # Configurar UI para download com NOVO sistema
-        self.progress_bar.set_download_state("downloading")
-        self.progress_bar.start_progress()
+        # Configurar UI para download com widget minimalista
         self.speed_label.setVisible(True)
         
-        # Mostrar controles de download NOVOS
-        self.download_controls.set_downloading_state()
-        self.download_controls.setVisible(True)
+        # Mostrar widget minimalista de download
+        game_name = self.game_data.get('game_name', 'Unknown Game') if self.game_data else None
+        
+        # Obter imagem do jogo do container existente
+        game_image = None
+        if hasattr(self, 'game_header_label') and self.game_header_label.pixmap():
+            game_image = self.game_header_label.pixmap()
+        
+        self.minimal_download_widget.set_downloading_state(game_name, game_image)
+        self.minimal_download_widget.setVisible(True)
+        
+        # Esconder container antigo para evitar duplicação
+        self.game_image_container.hide()
+        
+        # Conectar signals do widget minimalista ao download manager
+        self.minimal_download_widget.pause_clicked.connect(self.download_manager.pause_download)
+        self.minimal_download_widget.resume_clicked.connect(self.download_manager.resume_download)
+        self.minimal_download_widget.cancel_clicked.connect(self.download_manager.cancel_download)
         
         # Iniciar download usando NOVO DownloadManager
         session_id = self.download_manager.start_download(
@@ -554,8 +574,8 @@ class MainWindow(QMainWindow):
                 game_name = self.game_data.get('game_name', 'Unknown Game')
                 self.game_title_label.setText(game_name)
                 
-                # Show the game image container
-                self.game_image_container.setVisible(True)
+                # Show the game image container (agora integrado no widget minimalista)
+                # self.game_image_container.setVisible(True)
                 
                 # Fetch header image
                 app_id = self.game_data.get('appid')
@@ -616,10 +636,10 @@ class MainWindow(QMainWindow):
 
         self.drop_text_label.setVisible(True)
         self.drop_text_label.setText("Drag and Drop Zip here")
-        self.progress_bar.setVisible(False)
         self.speed_label.setVisible(False)
         self.game_image_container.setVisible(False)
         self.title_bar.select_file_button.setVisible(True)  # Show button again
+        self.minimal_download_widget.setVisible(False)  # Esconder widget minimalista
 
         # 🐛 FIX: Clean up all state variables to prevent conflicts on next ZIP
         self.game_data = None
@@ -634,6 +654,7 @@ class MainWindow(QMainWindow):
     def _start_speed_monitor(self):
         self.speed_monitor_task = SpeedMonitorTask()
         self.speed_monitor_task.speed_update.connect(self.speed_label.setText)
+        self.speed_monitor_task.speed_update.connect(self.minimal_download_widget.update_speed)
         runner = TaskRunner()
         runner.run(self.speed_monitor_task.run)
 
