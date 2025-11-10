@@ -8,7 +8,7 @@ import time
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QLabel, QProgressBar,
     QTextEdit, QFrame, QFileDialog, QMessageBox,
-    QStatusBar, QDialog, QHBoxLayout, QSizePolicy
+    QStatusBar, QDialog, QHBoxLayout, QSizePolicy, QApplication
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QMovie, QPixmap
@@ -728,6 +728,16 @@ class MainWindow(QMainWindow):
         self.slssteam_mode_was_active = False
         self._steam_restart_prompted = False  # Reset flag for next download
         self.zip_task = None  # Ensure ZIP task is cleaned up
+        
+        # Clean up task runner and threads properly
+        if self.task_runner:
+            try:
+                if hasattr(self.task_runner, 'thread') and self.task_runner.thread:
+                    if self.task_runner.thread.isRunning():
+                        self.task_runner.thread.quit()
+                        self.task_runner.thread.wait(1000)  # Wait up to 1 second
+            except Exception as e:
+                logger.warning(f"Error cleaning up task runner thread: {e}")
         self.task_runner = None  # Clean up task runner reference
 
         logger.debug("UI state fully reset, ready for next operation")
@@ -765,9 +775,12 @@ class MainWindow(QMainWindow):
                     self.log_output.append("Steam process not found, attempting to launch directly.")
                 else:
                     self.log_output.append("Steam closed successfully. Waiting 3 seconds before restart...")
-                    # Wait for Steam to fully close
+                    # Wait for Steam to fully close - use non-blocking approach
                     import time
-                    time.sleep(3)
+                    start_time = time.time()
+                    while time.time() - start_time < 3:
+                        QApplication.processEvents()
+                        time.sleep(0.1)
                 
                 self.log_output.append("Restarting Steam...")
                 status = steam_helpers.start_steam()
@@ -1007,9 +1020,16 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         self._stop_speed_monitor()
         
+        # Clean up download manager and its threads
+        if hasattr(self, 'download_manager') and self.download_manager:
+            self.download_manager.cleanup()
+        
         # Clean up image thread if exists
         if hasattr(self, 'image_thread') and self.image_thread:
             self.image_thread.quit()
             self.image_thread.wait(3000)
+        
+        # Process any remaining events to ensure clean shutdown
+        QApplication.processEvents()
         
         super().closeEvent(event)
