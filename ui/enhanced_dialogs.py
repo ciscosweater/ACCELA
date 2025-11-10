@@ -3,7 +3,7 @@ import urllib.request
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QLineEdit, QTextEdit, QListWidget, QListWidgetItem, QFileDialog, QMessageBox,
-    QFrame, QScrollArea, QAbstractItemView, QWidget, QComboBox
+    QFrame, QScrollArea, QAbstractItemView, QWidget, QComboBox, QApplication
 )
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QThread, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QPixmap, QFont
@@ -17,7 +17,9 @@ from utils.settings import (
     is_steam_schema_enabled,
     should_auto_setup_credentials,
     get_logging_setting,
-    set_logging_setting
+    set_logging_setting,
+    get_font_setting,
+    set_font_setting
 )
 
 logger = logging.getLogger(__name__)
@@ -111,9 +113,11 @@ class SettingsDialog(ModernDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setFixedSize(450, 400)
+        self.setFixedSize(500, 400)
         self.settings = get_settings()
+        self._original_settings = {}
         self._setup_ui()
+        self._store_original_settings()
         
         logger.debug("Opening enhanced SettingsDialog.")
 
@@ -251,6 +255,43 @@ class SettingsDialog(ModernDialog):
         
         scroll_layout.addWidget(logging_frame)
         
+        # Font Settings Section
+        font_frame = ModernFrame()
+        font_layout = QVBoxLayout(font_frame)
+        
+        font_title = QLabel("🔤 Font Settings")
+        from .theme import theme
+        font_title.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {theme.colors.TEXT_ACCENT};")
+        font_layout.addWidget(font_title)
+        
+        # Font selection
+        font_selection_layout = QHBoxLayout()
+        font_label = QLabel("Application Font:")
+        font_label.setStyleSheet(f"color: {theme.colors.TEXT_SECONDARY}; font-size: 11px;")
+        font_selection_layout.addWidget(font_label)
+        
+        self.font_combo = QComboBox()
+        self.font_combo.addItems([
+            "TrixieCyrG-Plain Regular (Default)",
+            "MotivaSansRegular (New)"
+        ])
+        current_font = str(get_font_setting("selected_font", "TrixieCyrG-Plain Regular"))
+        if current_font == "MotivaSansRegular":
+            self.font_combo.setCurrentIndex(1)
+        else:
+            self.font_combo.setCurrentIndex(0)
+        self.font_combo.setToolTip("Select the font to use throughout the application")
+        font_selection_layout.addWidget(self.font_combo)
+        
+        font_layout.addLayout(font_selection_layout)
+        
+        # Info label
+        font_info_label = QLabel("💡 Requires application restart to take effect")
+        font_info_label.setStyleSheet(f"color: {theme.colors.TEXT_DISABLED}; font-size: 10px; font-style: italic;")
+        font_layout.addWidget(font_info_label)
+        
+        scroll_layout.addWidget(font_frame)
+        
         # DRM Removal Section
         drm_frame = ModernFrame()
         drm_layout = QVBoxLayout(drm_frame)
@@ -289,6 +330,19 @@ class SettingsDialog(ModernDialog):
         button_layout.addWidget(save_button)
         
         main_layout.addLayout(button_layout)
+
+    def _store_original_settings(self):
+        """Store original settings to detect changes."""
+        self._original_settings = {
+            'slssteam_mode': self.settings.value("slssteam_mode", True, type=bool),
+            'steam_schema_enabled': bool(is_steam_schema_enabled()),
+            'auto_setup_credentials': bool(should_auto_setup_credentials()),
+            'slscheevo_username': self.settings.value("slscheevo_username", "", type=str),
+            'steamless_enabled': self.settings.value("steamless_enabled", True, type=bool),
+            'simple_mode': bool(get_logging_setting("simple_mode", False)),
+            'log_level': str(get_logging_setting("level", "INFO")),
+            'selected_font': str(get_font_setting("selected_font", "TrixieCyrG-Plain Regular"))
+        }
 
     def _detect_slscheevo_usernames(self):
         """Detect available SLScheevo usernames and show selection dialog"""
@@ -345,64 +399,136 @@ class SettingsDialog(ModernDialog):
     def _show_help(self):
         """Show settings help dialog."""
         help_text = """
- Settings Help:
+  Settings Help:
 
- 🎮 SLSsteam Integration
- • Enables compatibility with SLSsteam wrapper
- • Required for Linux Steam integration
- • SLSsteam mode auto-selects Steam library folders
+  🎮 SLSsteam Integration
+  • Enables compatibility with SLSsteam wrapper
+  • Required for Linux Steam integration
+  • SLSsteam mode auto-selects Steam library folders
 
- 🏆 Steam Schema Generator  
- • Auto-generates achievement schemas
- • Requires SLScheevo login credentials
- • Configure username or leave empty to auto-detect
+  🏆 Steam Schema Generator  
+  • Auto-generates achievement schemas
+  • Requires SLScheevo login credentials
+  • Configure username or leave empty to auto-detect
 
- 🔓 DRM Removal
- • Removes Steam DRM from executables
- • Makes games playable without Steam client
+  🔓 DRM Removal
+  • Removes Steam DRM from executables
+  • Makes games playable without Steam client
 
- 📝 Logging Configuration
- • Simplified format: 'ERROR: message' vs full timestamp
- • Log levels: DEBUG (all), INFO (normal), WARNING/ERROR/CRITICAL (less)
- • File 'app.log' always saves complete DEBUG logs for troubleshooting
+  📝 Logging Configuration
+  • Simplified format: 'ERROR: message' vs full timestamp
+  • Log levels: DEBUG (all), INFO (normal), WARNING/ERROR/CRITICAL (less)
+  • File 'app.log' always saves complete DEBUG logs for troubleshooting
 
- Keyboard Shortcuts:
- F1 - Show this help
- Ctrl+S - Open Settings
+  🔤 Font Settings
+  • Choose between default and new font styles
+  • Changes require application restart
+  • Font affects entire application interface
+
+  Keyboard Shortcuts:
+  F1 - Show this help
+  Ctrl+S - Open Settings
+  Ctrl+F - Font Settings
         """
         QMessageBox.information(self, "Settings Help", help_text.strip())
 
     def accept(self):
         """Save settings with enhanced feedback."""
+        # Get current values
+        current_values = {
+            'slssteam_mode': self.slssteam_mode_checkbox.isChecked(),
+            'steam_schema_enabled': self.steam_schema_enabled_checkbox.isChecked(),
+            'auto_setup_credentials': self.auto_setup_checkbox.isChecked(),
+            'slscheevo_username': self.slscheevo_username_edit.text().strip(),
+            'steamless_enabled': self.steamless_enabled_checkbox.isChecked(),
+            'simple_mode': self.simple_mode_checkbox.isChecked(),
+            'log_level': self.log_level_combo.currentText(),
+        }
+        
+        selected_text = self.font_combo.currentText()
+        if "MotivaSansRegular" in selected_text:
+            current_values['selected_font'] = "MotivaSansRegular"
+        else:
+            current_values['selected_font'] = "TrixieCyrG-Plain Regular"
+        
+        # Check for changes that require restart
+        restart_required = False
+        changes_made = []
+        
+        # Check each setting for changes
+        for key, current_value in current_values.items():
+            if key in self._original_settings:
+                original_value = self._original_settings[key]
+                if original_value != current_value:
+                    changes_made.append(f"{key}: {original_value} → {current_value}")
+                    # Font changes always require restart
+                    if key == 'selected_font':
+                        restart_required = True
+        
         # Save SLSsteam mode setting
-        self.settings.setValue("slssteam_mode", self.slssteam_mode_checkbox.isChecked())
-        logger.info(f"SLSsteam mode changed to: {self.slssteam_mode_checkbox.isChecked()}")
+        self.settings.setValue("slssteam_mode", current_values['slssteam_mode'])
+        logger.info(f"SLSsteam mode changed to: {current_values['slssteam_mode']}")
         
         logger.info("SLSsteam integration settings updated successfully.")
         
         # Save Steam Schema settings
-        set_steam_schema_setting("enabled", self.steam_schema_enabled_checkbox.isChecked())
-        set_steam_schema_setting("auto_setup_credentials", self.auto_setup_checkbox.isChecked())
+        set_steam_schema_setting("enabled", current_values['steam_schema_enabled'])
+        set_steam_schema_setting("auto_setup_credentials", current_values['auto_setup_credentials'])
         
         # Save SLScheevo username
-        slscheevo_username = self.slscheevo_username_edit.text().strip()
-        self.settings.setValue("slscheevo_username", slscheevo_username)
-        logger.info(f"SLScheevo username saved: {slscheevo_username if slscheevo_username else '(auto-detect)'}")
+        self.settings.setValue("slscheevo_username", current_values['slscheevo_username'])
+        logger.info(f"SLScheevo username saved: {current_values['slscheevo_username'] if current_values['slscheevo_username'] else '(auto-detect)'}")
         
         # Save Steamless setting
-        self.settings.setValue("steamless_enabled", self.steamless_enabled_checkbox.isChecked())
-        logger.info(f"Steamless DRM removal setting changed to: {self.steamless_enabled_checkbox.isChecked()}")
+        self.settings.setValue("steamless_enabled", current_values['steamless_enabled'])
+        logger.info(f"Steamless DRM removal setting changed to: {current_values['steamless_enabled']}")
         
         # Save logging settings
-        set_logging_setting("simple_mode", self.simple_mode_checkbox.isChecked())
-        set_logging_setting("level", self.log_level_combo.currentText())
-        logger.info(f"Logging settings updated: simple_mode={self.simple_mode_checkbox.isChecked()}, level={self.log_level_combo.currentText()}")
+        set_logging_setting("simple_mode", current_values['simple_mode'])
+        set_logging_setting("level", current_values['log_level'])
+        logger.info(f"Logging settings updated: simple_mode={current_values['simple_mode']}, level={current_values['log_level']}")
+        
+        # Save font settings
+        set_font_setting("selected_font", current_values['selected_font'])
+        logger.info(f"Font setting updated: selected_font={current_values['selected_font']}")
         
         # Apply logging changes immediately
         from utils.logger import update_logging_mode
         update_logging_mode()
         
         logger.info("Enhanced settings updated successfully.")
+        
+        # Show restart dialog if changes were made
+        if changes_made:
+            if restart_required:
+                reply = QMessageBox.question(
+                    self,
+                    "Restart Application",
+                    f"The following settings were changed:\n\n" + 
+                    "\n".join([f"• {change}" for change in changes_made]) + 
+                    "\n\nApplication restart is required to apply the changes.\nDo you want to restart now?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes
+                )
+                
+                if reply == QMessageBox.StandardButton.Yes:
+                    # Restart application
+                    import sys
+                    import os
+                    from PyQt6.QtWidgets import QApplication
+                    logger.info("Restarting application to apply settings...")
+                    QApplication.quit()
+                    os.execv(sys.executable, ['python'] + sys.argv)
+                    return
+            else:
+                QMessageBox.information(
+                    self,
+                    "Settings Saved",
+                    f"The following settings were changed:\n\n" + 
+                    "\n".join([f"• {change}" for change in changes_made]) +
+                    "\n\nChanges have been applied successfully!"
+                )
+        
         super().accept()
 
 class DepotSelectionDialog(ModernDialog):

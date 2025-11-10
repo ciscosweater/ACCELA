@@ -13,6 +13,7 @@ if project_root not in sys.path:
 from ui.main_window import MainWindow
 from ui.theme import theme
 from utils.logger import setup_logging
+from utils.settings import get_font_setting
 
 def main():
     """
@@ -31,23 +32,47 @@ def main():
     app.setStyle("Fusion")
     
     # --- MODIFICATION START ---
-    # Load and Apply Custom Font FIRST
-    font_path = "assets/fonts/TrixieCyrG-Plain Regular.otf"
-    font_id = QFontDatabase.addApplicationFont(font_path)
+    # Load fonts and apply selected font
+    selected_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular")
     
-    if font_id == -1:
-        logger.warning(f"Failed to load custom font from: {font_path}")
-        font_name = "Arial"  # Fallback font
-    else:
-        font_families = QFontDatabase.applicationFontFamilies(font_id)
-        if font_families:
-            font_name = font_families[0]
-            custom_font = QFont(font_name, 10)
-            app.setFont(custom_font)
-            logger.info(f"Successfully loaded and applied custom font: '{font_name}'")
+    # Load TrixieCyrG font
+    trixie_path = "assets/fonts/TrixieCyrG-Plain Regular.otf"
+    trixie_id = QFontDatabase.addApplicationFont(trixie_path)
+    
+    # Load MotivaSans font
+    motiva_path = "assets/fonts/MotivaSansRegular.woff.ttf"
+    motiva_id = QFontDatabase.addApplicationFont(motiva_path)
+    
+    font_loaded = False
+    font_name = "Arial"  # Default fallback
+    
+    if selected_font == "TrixieCyrG-Plain Regular":
+        if trixie_id != -1:
+            font_families = QFontDatabase.applicationFontFamilies(trixie_id)
+            if font_families:
+                font_name = font_families[0]
+                font_loaded = True
+                logger.info(f"Loaded TrixieCyrG font: '{font_name}'")
         else:
-            logger.warning(f"Could not retrieve font family name from: {font_path}")
-            font_name = "Arial"  # Fallback font
+            logger.warning(f"Failed to load TrixieCyrG font from: {trixie_path}")
+    
+    elif selected_font == "MotivaSansRegular":
+        if motiva_id != -1:
+            font_families = QFontDatabase.applicationFontFamilies(motiva_id)
+            if font_families:
+                font_name = font_families[0]
+                font_loaded = True
+                logger.info(f"Loaded MotivaSans font: '{font_name}'")
+        else:
+            logger.warning(f"Failed to load MotivaSans font from: {motiva_path}")
+    
+    # Apply font if loaded successfully
+    if font_loaded:
+        custom_font = QFont(font_name, 10)
+        app.setFont(custom_font)
+        logger.info(f"Applied selected font: '{font_name}'")
+    else:
+        logger.warning(f"Could not load selected font '{selected_font}', using fallback: {font_name}")
     
     # Apply theme after font is loaded
     theme.apply_theme_to_app(app)

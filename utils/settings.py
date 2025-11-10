@@ -26,6 +26,15 @@ STEAM_SCHEMA_SETTINGS = {
 # --- SLSsteam Integration Settings ---
 # Note: Only slssteam_mode is currently implemented and functional
 
+# --- Font Settings ---
+FONT_SETTINGS = {
+    "selected_font": {
+        "default": "TrixieCyrG-Plain Regular",
+        "type": str,
+        "description": "Selected application font"
+    }
+}
+
 # --- Logging Settings ---
 LOGGING_SETTINGS = {
     "simple_mode": {
@@ -120,6 +129,54 @@ def get_logging_setting(key, default=None):
         return int(value) if value is not None else setting_config["default"]
     else:
         return value
+
+def get_font_setting(key, default=None):
+    """
+    Get a font setting with proper type conversion.
+    
+    Args:
+        key (str): Setting key
+        default: Default value if setting not found
+        
+    Returns:
+        Setting value with proper type
+    """
+    settings = get_settings()
+    setting_config = FONT_SETTINGS.get(key, {})
+    
+    if not setting_config:
+        return default
+    
+    value = settings.value(f"font/{key}", setting_config["default"])
+    
+    # Type conversion
+    if setting_config["type"] == bool:
+        return bool(value)
+    elif setting_config["type"] == int:
+        return int(value) if value is not None else setting_config["default"]
+    else:
+        return value
+
+def set_font_setting(key, value):
+    """
+    Set a font setting.
+    
+    Args:
+        key (str): Setting key
+        value: Setting value
+    """
+    settings = get_settings()
+    setting_config = FONT_SETTINGS.get(key, {})
+    
+    if setting_config:
+        # Type validation
+        if setting_config["type"] == bool and not isinstance(value, bool):
+            value = bool(value)
+        elif setting_config["type"] == int and not isinstance(value, int):
+            value = int(value) if value is not None else setting_config["default"]
+    
+    settings.setValue(f"font/{key}", value)
+    settings.sync()
 
 def set_logging_setting(key, value):
     """

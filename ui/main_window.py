@@ -15,6 +15,7 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QMovie, QPixmap
 
 from ui.custom_title_bar import CustomTitleBar
 from ui.enhanced_dialogs import SettingsDialog, DepotSelectionDialog, SteamLibraryDialog, DlcSelectionDialog
+from ui.font_settings_dialog import FontSettingsDialog
 from ui.enhanced_widgets import EnhancedProgressBar
 from ui.game_image_display import GameImageDisplay, ImageFetcher
 from ui.interactions import HoverButton, ModernFrame, AnimatedLabel
@@ -287,6 +288,10 @@ class MainWindow(QMainWindow):
 
     def open_settings(self):
         dialog = SettingsDialog(self)
+        dialog.exec()
+    
+    def open_font_settings(self):
+        dialog = FontSettingsDialog(self)
         dialog.exec()
 
     def dragEnterEvent(self, event: QDragEnterEvent):
