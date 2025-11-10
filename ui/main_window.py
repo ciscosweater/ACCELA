@@ -319,9 +319,14 @@ class MainWindow(QMainWindow):
         # Check SLSsteam prerequisite before processing ZIP
         if not self._check_slssteam_prerequisite():
             return
-        
+
+        # 🐛 FIX: Clean up any previous ZIP task to prevent conflicts
+        if hasattr(self, 'zip_task'):
+            self.zip_task = None
+            logger.debug("Cleaned up previous ZIP task reference")
+
         self.log_output.append(f"Processing ZIP file: {zip_path}")
-        
+
         # Show visual feedback during ZIP processing
         self.drop_text_label.setText("Processing ZIP...")
         self.drop_text_label.setVisible(True)
@@ -329,7 +334,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setRange(0, 0)  # Indeterminate progress
         self.progress_bar.setValue(0)
         self.title_bar.select_file_button.setVisible(False)
-        
+
         self.zip_task = ProcessZipTask()
         runner = TaskRunner()
         worker = runner.run(self.zip_task.run, zip_path)
@@ -576,7 +581,11 @@ class MainWindow(QMainWindow):
 
     def _handle_task_error(self, error_info):
         _, error_value, _ = error_info
+        logger.error(f"Task error occurred: {error_value}", exc_info=True)
         QMessageBox.critical(self, "Error", f"An error occurred: {error_value}")
+        # 🐛 FIX: Clean up ZIP task reference on error
+        if hasattr(self, 'zip_task'):
+            self.zip_task = None
         self._reset_ui_state()
         self._stop_speed_monitor()
 
@@ -587,17 +596,22 @@ class MainWindow(QMainWindow):
             self.drop_label.setMovie(self.main_movie)
             self.main_movie.start()
             self.current_movie = self.main_movie
-        
+
         self.drop_text_label.setVisible(True)
         self.drop_text_label.setText("Drag and Drop Zip here")
         self.progress_bar.setVisible(False)
         self.speed_label.setVisible(False)
         self.game_image_container.setVisible(False)
         self.title_bar.select_file_button.setVisible(True)  # Show button again
+
+        # 🐛 FIX: Clean up all state variables to prevent conflicts on next ZIP
         self.game_data = None
         self.current_dest_path = None
         self.slssteam_mode_was_active = False
         self._steam_restart_prompted = False  # Reset flag for next download
+        self.zip_task = None  # Ensure ZIP task is cleaned up
+
+        logger.debug("UI state fully reset, ready for next operation")
 
     def _start_speed_monitor(self):
         self.speed_monitor_task = SpeedMonitorTask()
