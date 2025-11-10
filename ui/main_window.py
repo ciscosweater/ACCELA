@@ -551,7 +551,7 @@ class MainWindow(QMainWindow):
         # Conectar signals do widget minimalista ao download manager
         self.minimal_download_widget.pause_clicked.connect(self.download_manager.pause_download)
         self.minimal_download_widget.resume_clicked.connect(self.download_manager.resume_download)
-        self.minimal_download_widget.cancel_clicked.connect(self.download_manager.cancel_download)
+        # O cancel já está conectado ao _confirm_cancel_download na linha 319
         
         # Iniciar download usando NOVO DownloadManager
         session_id = self.download_manager.start_download(
