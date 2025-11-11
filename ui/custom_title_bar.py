@@ -100,6 +100,12 @@ class CustomTitleBar(QFrame):
         )
         right_layout.addWidget(self.settings_button)
 
+        # Add theme settings button
+        self.theme_button = self._create_text_button(
+            "🎨", getattr(parent, "open_theme_settings", lambda: None), "Theme Settings"
+        )
+        right_layout.addWidget(self.theme_button)
+
         self.close_button = self._create_svg_button(
             POWER_SVG, getattr(parent, "close", lambda: None), "Close Application"
         )
