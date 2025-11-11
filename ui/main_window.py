@@ -935,6 +935,11 @@ class MainWindow(QMainWindow):
                 self._show_download_completion_message()
                 # Fix was declined, clear the flag
                 self._fix_available = False
+                
+                # Still prompt for Steam restart in case SLSsteam was set up during download
+                # Reset the flag to allow the prompt even though no fix was installed
+                self._steam_restart_prompted = False
+                self._prompt_for_steam_restart()
                     
         except Exception as e:
             logger.error(f"Error showing fixes available dialog: {e}")
