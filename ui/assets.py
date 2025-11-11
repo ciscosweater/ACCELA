@@ -1,11 +1,16 @@
 # This file contains constants and assets used throughout the UI.
 
 # --- Blacklist ---
+# Combined blacklist from original ACCELA and enhanced fork
+# Includes problematic depot IDs that should be filtered out
 DEPOT_BLACKLIST = [
+    # Original fork blacklist
     228981, 228982, 228983, 228984, 228985, 228986, 228987, 228988,
     228989, 229000, 229001, 229002, 229003, 229004, 229005, 229006,
     229007, 229010, 229011, 229012, 229020, 229030, 229031, 229032,
-    229033, 228990
+    229033, 228990,
+    # Additional depot IDs from original ACCELA 2.0
+    239142, 798541, 798542, 798543, 1034630
 ]
 
 # --- SVG Icons ---

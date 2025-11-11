@@ -1,23 +1,144 @@
 #!/usr/bin/env bash
 set -e  # Exit on error
 
-# Dummy Script To Tell The Script Where It Will Be Operating In.
-cd "$(dirname "$(readlink -f "$0")")"
+# Enhanced ACCELA Launcher with automatic setup and dependency checking
+cd "$(dirname "$(readlink -f "$0")"
 SCRIPT_DIR="$(pwd)"
 
-# This Activates The Virtual Enviroment.
-if [ -f "$SCRIPT_DIR/venv/bin/activate" ]; then
-    source "$SCRIPT_DIR/venv/bin/activate"
-elif [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
-    source "$SCRIPT_DIR/.venv/bin/activate"
-else
-    echo "Error: Virtual environment not found at $SCRIPT_DIR/venv or $SCRIPT_DIR/.venv"
-    echo "Please create a virtual environment first:"
-    echo "  python3 -m venv venv"
-    echo "  source venv/bin/activate"
-    echo "  pip install -r requirements.txt"
-    exit 1
-fi
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[ACCELA]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+# Function to check and create virtual environment if needed
+setup_virtual_env() {
+    if [ -f "$SCRIPT_DIR/venv/bin/activate" ]; then
+        source "$SCRIPT_DIR/venv/bin/activate"
+        print_status "Using existing virtual environment"
+    elif [ -f "$SCRIPT_DIR/.venv/bin/activate" ]; then
+        source "$SCRIPT_DIR/.venv/bin/activate"
+        print_status "Using existing virtual environment"
+    else
+        print_warning "Virtual environment not found"
+        print_info "Creating virtual environment..."
+        
+        # Check if python3 is available
+        if ! command -v python3 &> /dev/null; then
+            print_error "Python 3 is not installed. Please install Python 3.8+ first."
+            exit 1
+        fi
+        
+        # Create virtual environment
+        python3 -m venv venv
+        print_status "Virtual environment created"
+        
+        # Activate it
+        source "$SCRIPT_DIR/venv/bin/activate"
+        
+        # Check if requirements.txt exists
+        if [ -f "$SCRIPT_DIR/requirements.txt" ]; then
+            print_info "Installing dependencies..."
+            pip install -r "$SCRIPT_DIR/requirements.txt"
+            print_status "Dependencies installed successfully"
+        else
+            print_warning "requirements.txt not found, installing basic dependencies..."
+            pip install PyQt6 requests psutil beautifulsoup4 "steam[client]"
+        fi
+        
+        print_status "Setup complete!"
+    fi
+}
+
+# Function to check system dependencies
+check_system_deps() {
+    # Check for aplay (Linux audio)
+    if ! command -v aplay &> /dev/null; then
+        print_warning "aplay not found. Sound effects will be disabled."
+        print_info "Install ALSA utilities: sudo apt install alsa-utils"
+    fi
+    
+    # Check for basic GUI dependencies
+    if ! python3 -c "import PyQt6" 2>/dev/null; then
+        print_error "PyQt6 not available. Please check your installation."
+        exit 1
+    fi
+}
+
+# Function to play sound if file exists and aplay is available
+play_sound() {
+    local sound_file="$1"
+    if command -v aplay &> /dev/null && [ -f "$sound_file" ]; then
+        aplay "$sound_file" 2>/dev/null || print_warning "Could not play $sound_file"
+    fi
+}
+
+# Function to display startup banner
+show_banner() {
+    echo -e "${BLUE}"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                    ACCELA - Steam Depot Downloader                ║"
+    echo "║                      Enhanced Fork v2.0                        ║"
+    echo "║                                                              ║"
+    echo "║  🎮 Download Steam depots with advanced management          ║"
+    echo "║  🚀 Enhanced UI and features                              ║"
+    echo "║  🔧 Automatic setup and dependency checking                ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+}
+
+# Main execution
+main() {
+    show_banner
+    print_info "Initializing ACCELA..."
+    
+    # Setup virtual environment and check dependencies
+    setup_virtual_env
+    check_system_deps
+    
+    # Check if a zip file was provided as argument
+    if [ $# -gt 0 ]; then
+        ZIP_FILE="$1"
+        # Check if file exists and is a zip file
+        if [ -f "$ZIP_FILE" ] && [[ "$ZIP_FILE" == *.zip ]]; then
+            print_status "Processing zip file: $ZIP_FILE"
+            play_sound "$SCRIPT_DIR/audio/sfx/etw.wav"
+            python "$SCRIPT_DIR/main.py" "$ZIP_FILE"
+            play_sound "$SCRIPT_DIR/audio/sfx/lal.wav"
+        else
+            print_error "File '$ZIP_FILE' does not exist or is not a zip file."
+            print_info "Usage: ACCELA [zip_file]"
+            exit 1
+        fi
+    else
+        # No zip file provided, run normally
+        print_status "Starting ACCELA GUI..."
+        play_sound "$SCRIPT_DIR/audio/sfx/etw.wav"
+        python "$SCRIPT_DIR/main.py"
+        play_sound "$SCRIPT_DIR/audio/sfx/lal.wav"
+    fi
+}
+
+# Run main function
+main "$@"
 
 # Function to play sound if file exists
 play_sound() {
