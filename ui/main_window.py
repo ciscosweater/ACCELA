@@ -746,8 +746,10 @@ class MainWindow(QMainWindow):
             else:
                 self.log_output.append(f"No Online-Fixes available for {game_name}")
                 logger.info(f"No Online-Fixes available for AppID {appid}")
-                # Se não há fixes disponíveis, mostrar mensagem de conclusão agora
-                QTimer.singleShot(100, self._show_download_completion_message)
+                # Se não há fixes disponíveis, apenas mostrar prompt para reiniciar Steam
+                # (SLSsteam pode ter sido configurado durante o download)
+                self._steam_restart_prompted = False
+                self._prompt_for_steam_restart()
                 
         except Exception as e:
             logger.error(f"Error handling fix check completion: {e}")
