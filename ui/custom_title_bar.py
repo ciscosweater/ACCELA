@@ -53,39 +53,18 @@ class CustomTitleBar(QFrame):
         left_layout = QHBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.navi_label = QLabel()
-        self.navi_movie = QMovie("assets/gifs/navi.gif")
-        if self.navi_movie.isValid():
-            self.navi_label.setMovie(self.navi_movie)
-            self.navi_movie.start()
-
-            original_size = self.navi_movie.currentPixmap().size()
-            target_height = 24  # Aumentado para melhor proporção
-
-            if original_size.height() > 0:
-                aspect_ratio = original_size.width() / original_size.height()
-                target_width = int(target_height * aspect_ratio)
-                scaled_size = QSize(target_width, target_height)
-
-                self.navi_movie.setScaledSize(scaled_size)
-                self.navi_label.setMinimumWidth(target_width)
-
-            # Remover borda estranha do navi.gif
-            from .theme import get_current_theme
-
-            current_theme = get_current_theme()
-
-            self.navi_label.setStyleSheet(f"""
-                QLabel {{
-                    border: none;
-                    background: transparent;
-                    padding: 0px;
-                    margin: 0px;
-                }}
-            """)
-        else:
-            logger.warning("Could not load navi.gif.")
-        left_layout.addWidget(self.navi_label)
+        self.version_label = QLabel("v1.1.0 - ciskao")
+        self.version_label.setStyleSheet(f"""
+            QLabel {{
+                color: {current_theme.colors.TEXT_SECONDARY};
+                font-size: 12px;
+                font-weight: 600;
+                background: transparent;
+                padding: 0px;
+                margin: 0px;
+            }}
+        """)
+        left_layout.addWidget(self.version_label)
 
         right_widget = QWidget()
         right_layout = QHBoxLayout(right_widget)
@@ -156,45 +135,37 @@ class CustomTitleBar(QFrame):
 
         self.setLayout(layout)
 
-    def mousePressEvent(self, a0):
+    def mousePressEvent(self, event: QMouseEvent):
         """
-        Captures initial mouse press event to start dragging window.
+        Records initial mouse position for window dragging.
         """
-        if a0 and hasattr(a0, "button") and a0.button() == Qt.MouseButton.LeftButton:
+        if event and hasattr(event, "button") and event.button() == Qt.MouseButton.LeftButton:
             if hasattr(self.parent, "frameGeometry"):
                 try:
                     self.drag_pos = (
-                        a0.globalPosition().toPoint()
+                        event.globalPosition().toPoint()
                         - self.parent.frameGeometry().topLeft()
                     )
                 except:
                     pass
-            a0.accept()
+            event.accept()
 
-    def mouseMoveEvent(self, a0):
+    def mouseMoveEvent(self, event: QMouseEvent):
         """
         Moves window as mouse is dragged.
         """
         if (
-            a0
-            and hasattr(a0, "buttons")
-            and a0.buttons() == Qt.MouseButton.LeftButton
+            event
+            and hasattr(event, "buttons")
+            and event.buttons() == Qt.MouseButton.LeftButton
             and self.drag_pos
         ):
             if hasattr(self.parent, "move"):
                 try:
-                    self.parent.move(a0.globalPosition().toPoint() - self.drag_pos)
+                    self.parent.move(event.globalPosition().toPoint() - self.drag_pos)
                 except:
                     pass
-            a0.accept()
-
-    def mouseReleaseEvent(self, a0):
-        """
-        Resets drag position when mouse button is released.
-        """
-        self.drag_pos = None
-        if a0:
-            a0.accept()
+            event.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         """
