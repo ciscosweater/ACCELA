@@ -648,11 +648,11 @@ class MainWindow(QMainWindow):
             logger.error(f"Error in download completion handler: {e}", exc_info=True)
             self.log_output.append(f"Error during completion: {e}")
         
-        # Hide controls after a while
-        QTimer.singleShot(3000, self._hide_download_controls)
+        # Hide controls after a short delay
+        QTimer.singleShot(2000, self._hide_download_controls)
         
-        # Reset UI state after completion - delay longer to allow fix installation
-        QTimer.singleShot(15000, self._safe_reset_ui_state)  # 15 seconds instead of 3.5
+        # Reset UI state after completion - shorter delay for better UX
+        QTimer.singleShot(5000, self._safe_reset_ui_state)  # 5 seconds instead of 15
         
     def _on_download_error(self, error_message):
         """Handle download errors"""
