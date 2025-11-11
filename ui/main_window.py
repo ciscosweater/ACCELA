@@ -931,8 +931,6 @@ class MainWindow(QMainWindow):
                 )
                 info_msg.exec()
                 
-                # Após cancelar, mostrar mensagem de conclusão do download
-                self._show_download_completion_message()
                 # Fix was declined, clear the flag
                 self._fix_available = False
                 
@@ -940,6 +938,9 @@ class MainWindow(QMainWindow):
                 # Reset the flag to allow the prompt even though no fix was installed
                 self._steam_restart_prompted = False
                 self._prompt_for_steam_restart()
+                
+                # NOTA: Não mostrar _show_download_completion_message() aqui
+                # Apenas o modal de reiniciar Steam deve aparecer
                     
         except Exception as e:
             logger.error(f"Error showing fixes available dialog: {e}")
