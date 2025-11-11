@@ -115,7 +115,9 @@ class SlssteamSetupDialog(ModernDialog):
                 margin-bottom: 10px;
             }
         """)
-        self.title_label.setFont(QFont("TrixieCyrG-Plain", 16))
+        from utils.settings import get_font_setting
+        title_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular"
+        self.title_label.setFont(QFont(title_font, 16))
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.title_label)
         
@@ -128,7 +130,7 @@ class SlssteamSetupDialog(ModernDialog):
                 margin-bottom: 15px;
             }
         """)
-        self.description_label.setFont(QFont("TrixieCyrG-Plain", 11))
+        self.description_label.setFont(QFont(title_font, 11))
         self.description_label.setWordWrap(True)
         self.description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.description_label)
@@ -150,7 +152,7 @@ class SlssteamSetupDialog(ModernDialog):
                 font-size: 14px;
             }
         """)
-        self.status_label.setFont(QFont("TrixieCyrG-Plain", 12))
+        self.status_label.setFont(QFont(title_font, 12))
         self.status_label.setWordWrap(True)
         status_layout.addWidget(self.status_label)
         
@@ -170,7 +172,7 @@ class SlssteamSetupDialog(ModernDialog):
                 color: #C06C84;
                 border: 1px solid #404040;
                 border-radius: 4px;
-                font-family: 'Courier New', monospace;
+                font-family: {Typography.get_font_family()};
                 font-size: 10px;
             }
         """)

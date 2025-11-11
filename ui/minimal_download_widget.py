@@ -37,8 +37,8 @@ class MinimalDownloadWidget(QWidget):
     def _setup_ui(self):
         """Configure minimalist interface with optimized layout"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
 
         # Container principal sem fundo
         self.setStyleSheet(f"""
@@ -49,9 +49,9 @@ class MinimalDownloadWidget(QWidget):
             }}
         """)
 
-        # Linha 1: Imagem + Nome do jogo
+        # Linha 1: Imagem + Nome do jogo (ocupando largura total)
         header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(16, 0, 16, 0)
+        header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(12)
 
         # Container for game image - Steam header ratio (920x430 ≈ 2.14:1)
@@ -94,22 +94,22 @@ class MinimalDownloadWidget(QWidget):
         header_layout.addWidget(self.game_name_label)
         header_layout.addStretch()
 
-        # Linha 2: Barra de progresso
+        # Linha 2: Barra de progresso (ocupando largura total)
         self.progress_container = QWidget()
-        self.progress_container.setFixedHeight(6)
+        self.progress_container.setFixedHeight(8)
         self.progress_container.setStyleSheet(f"""
             QWidget {{
                 background: {theme.colors.BACKGROUND};
-                border-radius: 3px;
+                border-radius: 4px;
             }}
         """)
 
         self.progress_bar = QWidget(self.progress_container)
-        self.progress_bar.setGeometry(0, 0, 0, 6)
+        self.progress_bar.setGeometry(0, 0, 0, 8)
         self.progress_bar.setStyleSheet(f"""
             QWidget {{
                 background: {theme.colors.PRIMARY};
-                border-radius: 3px;
+                border-radius: 4px;
             }}
         """)
 
@@ -118,14 +118,12 @@ class MinimalDownloadWidget(QWidget):
         self.progress_animation.setDuration(300)
         self.progress_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-        # Linha 3: Status detalhado + velocidade + controles
+        # Linha 3: Velocidade (esquerda) + controles (direita)
         bottom_layout = QHBoxLayout()
-        bottom_layout.setContentsMargins(16, 4, 16, 0)
+        bottom_layout.setContentsMargins(0, 4, 0, 0)
         bottom_layout.setSpacing(12)
 
-
-
-        # Velocidade label
+        # Velocidade label (lado esquerdo)
         self.speed_label = QLabel("")
         self.speed_label.setStyleSheet(f"""
             QLabel {{
@@ -147,8 +145,9 @@ class MinimalDownloadWidget(QWidget):
         self.resume_btn.hide()
         self.cancel_btn.hide()
 
-        bottom_layout.addStretch()
+        # Layout: velocidade à esquerda, controles à direita
         bottom_layout.addWidget(self.speed_label)
+        bottom_layout.addStretch()
         bottom_layout.addWidget(self.pause_btn)
         bottom_layout.addWidget(self.resume_btn)
         bottom_layout.addWidget(self.cancel_btn)

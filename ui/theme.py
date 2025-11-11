@@ -91,8 +91,9 @@ class Typography:
     @staticmethod
     def get_font_family() -> str:
         """Get font family string with fallback"""
-        # Return empty string to use application font
-        return ""
+        from utils.settings import get_font_setting
+        selected_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular"
+        return selected_font
 
 
 class Spacing:

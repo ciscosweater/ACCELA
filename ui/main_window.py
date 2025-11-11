@@ -160,13 +160,14 @@ class MainWindow(QMainWindow):
 
         self.drop_text_label = ScaledFontLabel("Drag and Drop Zip here")
         self.drop_text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        from .theme import theme
+        from .theme import theme, Typography
         self.drop_text_label.setStyleSheet(f"""
             QLabel {{
                 color: {theme.colors.TEXT_SECONDARY};
                 background-color: transparent;
+                font-family: {Typography.get_font_family()};
                 font-size: 14px;
-                font-weight: 500;
+                font-weight: 700;
             }}
         """)
         drop_zone_layout.addWidget(self.drop_text_label, 1)
@@ -203,23 +204,25 @@ class MainWindow(QMainWindow):
         game_info_layout.setSpacing(2)  # Reduced spacing
         
         self.game_title_label = QLabel("Game Title")
-        self.game_title_label.setStyleSheet("""
-            QLabel {
+        self.game_title_label.setStyleSheet(f"""
+            QLabel {{
+                font-family: {Typography.get_font_family()};
                 font-size: 12px;  # Reduced font size
                 font-weight: bold;
                 color: #C06C84;
                 border: none;
-            }
+            }}
         """)
         game_info_layout.addWidget(self.game_title_label)
         
         self.game_status_label = QLabel("Downloading...")
-        self.game_status_label.setStyleSheet("""
-            QLabel {
+        self.game_status_label.setStyleSheet(f"""
+            QLabel {{
+                font-family: {Typography.get_font_family()};
                 font-size: 10px;  # Reduced font size
                 color: #808080;
                 border: none;
-            }
+            }}
         """)
         game_info_layout.addWidget(self.game_status_label)
         
@@ -234,7 +237,7 @@ class MainWindow(QMainWindow):
 
         # Minimalist download widget (new unified component)
         self.minimal_download_widget.setVisible(False)
-        self.content_layout.addWidget(self.minimal_download_widget, 0, Qt.AlignmentFlag.AlignCenter)
+        self.content_layout.addWidget(self.minimal_download_widget, 0)
         
         # Enhanced progress bar (legacy - completely removed)
         # self.progress_bar = EnhancedProgressBar()
@@ -254,20 +257,22 @@ class MainWindow(QMainWindow):
 
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
-        self.log_output.setStyleSheet("""
-            QTextEdit {
+        from .theme import Typography
+        self.log_output.setStyleSheet(f"""
+            QTextEdit {{
                 background-color: #1E1E1E;
-                color: #C06C84;
-                font-family: 'Courier New', monospace;
-                font-size: 10px;
+                color: #FFFFFF;
+                font-family: {Typography.get_font_family()};
+                font-size: 12px;
+                font-weight: 500;
                 border: 1px solid #C06C84;
-            }
+            }}
         """)
         # Enable word wrapping and horizontal scrolling for long file paths
         self.log_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         self.log_output.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.log_output.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.content_layout.addWidget(self.log_output, 1)
+        self.content_layout.addWidget(self.log_output, 2)
         # Get the Qt log handler after logging is set up
         try:
             from utils.logger import qt_log_handler

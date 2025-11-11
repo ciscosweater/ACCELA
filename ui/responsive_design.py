@@ -406,7 +406,7 @@ class ResponsiveLogArea(QWidget):
                 border: 1px solid #282828;
                 border-radius: 4px;
                 color: #C06C84;
-                font-family: monospace;
+                font-family: inherit;
                 font-size: 10px;
                 padding: 10px;
             }
@@ -423,7 +423,7 @@ class ResponsiveLogArea(QWidget):
                     border: 1px solid #282828;
                     border-radius: 4px;
                     color: #C06C84;
-                    font-family: monospace;
+                    font-family: inherit;
                     font-size: 8px;
                     padding: 8px;
                 }
@@ -435,7 +435,7 @@ class ResponsiveLogArea(QWidget):
                     border: 1px solid #282828;
                     border-radius: 4px;
                     color: #C06C84;
-                    font-family: monospace;
+                    font-family: inherit;
                     font-size: 10px;
                     padding: 10px;
                 }

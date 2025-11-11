@@ -177,14 +177,16 @@ class SlssteamStatusWidget(ModernFrame):
                 background-color: transparent;
             }
         """)
-        self.status_label.setFont(QFont("TrixieCyrG-Plain", 11))
+        from utils.settings import get_font_setting
+        status_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular"
+        self.status_label.setFont(QFont(status_font, 11))
         self.status_label.setWordWrap(False)
         layout.addWidget(self.status_label, 1)  # Takes available space
         
         # Action button
         self.action_button = HoverButton("Configure")
         self.action_button.setFixedSize(75, 28)
-        self.action_button.setFont(QFont("TrixieCyrG-Plain", 9))
+        self.action_button.setFont(QFont(status_font, 9))
         self.action_button.clicked.connect(self._on_action_clicked)
         self.action_button.hide()  # Hide initially
         

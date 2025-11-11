@@ -12,8 +12,9 @@ from PyQt6.QtGui import QFont
 
 from ui.enhanced_widgets import EnhancedProgressBar
 from ui.interactions import HoverButton, ModernFrame
-from ui.theme import theme
+from ui.theme import theme, Typography
 from ui.custom_checkbox import CustomCheckBox
+from utils.settings import get_font_setting
 from core.game_manager import GameManager
 
 
@@ -200,7 +201,7 @@ class GameDeletionDialog(QDialog):
                 color: {theme.colors.TEXT_PRIMARY};
                 border: 1px solid {theme.colors.BORDER};
                 padding: 8px;
-                font-family: 'TrixieCyrG-Plain Regular';
+                font-family: {Typography.get_font_family()};
                 font-size: 10px;
             }}
             QPushButton {{
@@ -272,7 +273,8 @@ class GameDeletionDialog(QDialog):
         layout.setSpacing(4)  # Spacing adequado
         
         title = QLabel("ACCELA Game Manager")
-        title.setFont(QFont("TrixieCyrG-Plain Regular", 14, QFont.Weight.Bold))
+        selected_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular"
+        title.setFont(QFont(selected_font, 14, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {theme.colors.TEXT_ACCENT}; margin: 0; border: none; background: transparent;")
         layout.addWidget(title)
         
@@ -291,7 +293,8 @@ class GameDeletionDialog(QDialog):
         
         # Table header
         header_label = QLabel("Installed Games")
-        header_label.setFont(QFont("TrixieCyrG-Plain Regular", 12, QFont.Weight.Bold))
+        header_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular"
+        header_label.setFont(QFont(header_font, 12, QFont.Weight.Bold))
         header_label.setStyleSheet(f"color: {theme.colors.TEXT_ACCENT}; margin: 0; margin-bottom: 6px; border: none; background: transparent;")
         layout.addWidget(header_label)
         
@@ -435,7 +438,8 @@ class GameDeletionDialog(QDialog):
         
         # Details title
         details_title = QLabel("Game Details")
-        details_title.setFont(QFont("TrixieCyrG-Plain Regular", 12, QFont.Weight.Bold))
+        details_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular"
+        details_title.setFont(QFont(details_font, 12, QFont.Weight.Bold))
         details_title.setStyleSheet(f"color: {theme.colors.TEXT_ACCENT}; margin: 0; margin-bottom: 6px; border: none; background: transparent;")
         layout.addWidget(details_title)
         
