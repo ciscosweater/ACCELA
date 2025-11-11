@@ -104,7 +104,6 @@ class MainWindow(QMainWindow):
         
         # Minimalist download widget (new component)
         self.minimal_download_widget = MinimalDownloadWidget()
-        self.minimal_download_widget.setVisible(False)
         
         # Info cards container
         self.info_cards = InfoCardsContainer()
@@ -149,15 +148,11 @@ class MainWindow(QMainWindow):
         self.content_layout.setContentsMargins(Spacing.MD, Spacing.SM, Spacing.MD, Spacing.XS)  # Reduce bottom margin to eliminate extra space
         self.content_layout.setSpacing(Spacing.MD)  # Adequate spacing between elements
         
-        # Create stacked widget for switching between normal and download modes
-        self.stacked_widget = QStackedWidget()
-        self.content_layout.addWidget(self.stacked_widget, 3)
-        
-        # Normal mode page (drop zone + info cards)
-        self.normal_page = QWidget()
-        normal_layout = QHBoxLayout(self.normal_page)
-        normal_layout.setContentsMargins(0, 0, 0, 0)
-        normal_layout.setSpacing(Spacing.SM)
+        # Create horizontal layout for drop zone and info cards
+        drop_zone_with_cards = QWidget()
+        drop_zone_with_cards_layout = QHBoxLayout(drop_zone_with_cards)
+        drop_zone_with_cards_layout.setContentsMargins(0, 0, 0, 0)
+        drop_zone_with_cards_layout.setSpacing(Spacing.SM)
         
         # Drop zone container (left side)
         drop_zone_container = QWidget()
@@ -190,10 +185,19 @@ class MainWindow(QMainWindow):
         """)
         drop_zone_layout.addWidget(self.drop_text_label, 1)
 
-        # Add drop zone to left side of normal layout
-        normal_layout.addWidget(drop_zone_container, 3)  # Takes 3/4 of horizontal space
+        # Add drop zone to left side of horizontal layout
+        drop_zone_with_cards_layout.addWidget(drop_zone_container, 3)  # Takes 3/4 of horizontal space
         
-        # Add info cards to right side of normal layout
+        # Container for right side (cards or download widget)
+        self.right_side_container = QStackedWidget()
+        self.right_side_container.setStyleSheet(f"""
+            QStackedWidget {{
+                background: transparent;
+                border: none;
+            }}
+        """)
+        
+        # Info cards page (normal mode)
         self.info_cards_frame = QFrame()
         self.info_cards_frame.setStyleSheet(f"""
             QFrame {{
@@ -208,24 +212,32 @@ class MainWindow(QMainWindow):
         # Add the info cards container
         info_cards_layout.addWidget(self.info_cards)
         
-        normal_layout.addWidget(self.info_cards_frame, 1)  # Takes 1/4 of horizontal space
+        # Download widget page (download mode)
+        self.download_widget_frame = QFrame()
+        self.download_widget_frame.setStyleSheet(f"""
+            QFrame {{
+                background: transparent;
+                border: none;
+            }}
+        """)
+        download_widget_layout = QVBoxLayout(self.download_widget_frame)
+        download_widget_layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.SM, Spacing.SM)
+        download_widget_layout.setSpacing(Spacing.SM)
         
-        # Download mode page (minimal download widget)
-        self.download_page = QWidget()
-        download_layout = QVBoxLayout(self.download_page)
-        download_layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
-        download_layout.setSpacing(Spacing.MD)
+        # Add minimal download widget
+        download_widget_layout.addWidget(self.minimal_download_widget)
+        download_widget_layout.addStretch()
         
-        # Add minimal download widget to download page
-        download_layout.addWidget(self.minimal_download_widget)
-        download_layout.addStretch()
+        # Add pages to right side stacked widget
+        self.right_side_container.addWidget(self.info_cards_frame)  # Index 0 (normal)
+        self.right_side_container.addWidget(self.download_widget_frame)  # Index 1 (download)
         
-        # Add pages to stacked widget
-        self.stacked_widget.addWidget(self.normal_page)  # Index 0
-        self.stacked_widget.addWidget(self.download_page)  # Index 1
+        # Start with info cards
+        self.right_side_container.setCurrentIndex(0)
         
-        # Start with normal page
-        self.stacked_widget.setCurrentIndex(0)
+        drop_zone_with_cards_layout.addWidget(self.right_side_container, 1)  # Takes 1/4 of horizontal space
+
+        self.content_layout.addWidget(drop_zone_with_cards, 3)
 
         # Game header image area (initially hidden)
         self.game_image_container = ModernFrame()
@@ -286,9 +298,7 @@ class MainWindow(QMainWindow):
         # Hide old container to avoid duplication
         self.game_image_container.hide()
 
-        # Minimalist download widget (new unified component)
-        self.minimal_download_widget.setVisible(False)
-        self.content_layout.addWidget(self.minimal_download_widget, 0)
+
         
         # Enhanced progress bar (legacy - completely removed)
         # self.progress_bar = EnhancedProgressBar()
@@ -613,8 +623,8 @@ class MainWindow(QMainWindow):
         
         self.minimal_download_widget.set_downloading_state(game_name, game_image)
         
-        # Switch to download page
-        self.stacked_widget.setCurrentIndex(1)
+        # Switch right side to download widget
+        self.right_side_container.setCurrentIndex(1)
         
         # Hide old container to avoid duplication
         self.game_image_container.hide()
@@ -796,8 +806,8 @@ class MainWindow(QMainWindow):
 
         self.game_image_container.setVisible(False)
         self.title_bar.select_file_button.setVisible(True)  # Show button again
-        # Switch back to normal page
-        self.stacked_widget.setCurrentIndex(0)
+        # Switch right side back to info cards
+        self.right_side_container.setCurrentIndex(0)
 
         # 🐛 FIX: Clean up all state variables to prevent conflicts on next ZIP
         self.game_data = None
