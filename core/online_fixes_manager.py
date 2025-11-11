@@ -55,8 +55,22 @@ class OnlineFixesManager(QObject):
     def __init__(self):
         super().__init__()
         
-        # HTTP Client com timeout configurado
+        # HTTP Client com timeout configurado e otimizações
         self.http_client = requests.Session()
+        
+        # Configurar headers para melhor performance
+        self.http_client.headers.update({
+            'User-Agent': 'ACCELA-OnlineFixes/1.0',
+            'Accept': 'application/octet-stream',
+            'Accept-Encoding': 'gzip, deflate'
+        })
+        
+        # Headers para melhor performance
+        self.http_client.headers.update({
+            'User-Agent': 'ACCELA-OnlineFixes/1.0',
+            'Accept': 'application/octet-stream',
+            'Accept-Encoding': 'gzip, deflate'
+        })
         
         # Lock para thread safety (apenas para check, download usa QThread)
         self._fix_check_mutex = QMutex()
@@ -157,7 +171,7 @@ class OnlineFixesManager(QObject):
             url = f"https://store.steampowered.com/api/appdetails"
             params = {'appids': appid}
             
-            response = self.http_client.get(url, params=params, timeout=10)
+            response = self.http_client.get(url, params=params, timeout=5)
             response.raise_for_status()
             
             data = response.json()
@@ -180,8 +194,9 @@ class OnlineFixesManager(QObject):
                 logger.warning(f"Generic fix URL not allowed: {generic_url}")
                 return {'status': 403, 'available': False, 'url': None}
             
-            response = self.http_client.head(generic_url, timeout=10, allow_redirects=True)
-            logger.info(f"Generic fix check for {appid} -> {response.status_code}")
+            # Usar HEAD request com timeout menor para verificação rápida
+            response = self.http_client.head(generic_url, timeout=5, allow_redirects=True)
+            logger.debug(f"Generic fix check for {appid} -> {response.status_code}")
             
             if response.status_code == 200:
                 return {
@@ -216,8 +231,9 @@ class OnlineFixesManager(QObject):
                     logger.warning(f"Online-fix URL not allowed: {online_url}")
                     continue
                 
-                response = self.http_client.head(online_url, timeout=10, allow_redirects=True)
-                logger.info(f"Online-fix check ({online_url}) for {appid} -> {response.status_code}")
+                # Usar timeout menor para verificação mais rápida
+                response = self.http_client.head(online_url, timeout=5, allow_redirects=True)
+                logger.debug(f"Online-fix check ({online_url}) for {appid} -> {response.status_code}")
                 
                 if response.status_code == 200:
                     result['status'] = response.status_code
@@ -370,19 +386,24 @@ class OnlineFixesManager(QObject):
                 raise ValueError(f"Fix file too large: {total} bytes (max: {max_size} bytes)")
             
             downloaded = 0
+            last_progress_emit = 0
             with open(dest_zip, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
+                # Usar chunk size maior para melhor performance
+                for chunk in response.iter_content(chunk_size=65536):  # 64KB chunks
                     if chunk:
                         f.write(chunk)
                         downloaded += len(chunk)
                         
-                        # Atualizar progresso
+                        # Atualizar progresso (menos frequente para melhor performance)
                         if total > 0:
                             percentage = int((downloaded / total) * 100)
-                            try:
-                                self.fix_download_progress.emit(percentage, f"Downloading {fix_type} fix...")
-                            except Exception as emit_error:
-                                logger.warning(f"Failed to emit progress signal: {emit_error}")
+                            # Emitir progresso apenas a cada 5% para reduzir overhead
+                            if percentage - last_progress_emit >= 5 or percentage == 100:
+                                try:
+                                    self.fix_download_progress.emit(percentage, f"Downloading {fix_type} fix...")
+                                    last_progress_emit = percentage
+                                except Exception as emit_error:
+                                    logger.warning(f"Failed to emit progress signal: {emit_error}")
             
             # Extração do arquivo
             try:

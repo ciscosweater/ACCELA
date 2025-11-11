@@ -526,25 +526,31 @@ class MainWindow(QMainWindow):
                 self.zip_task = None
                 logger.debug("Cleaned up previous ZIP task reference")
             
-            # Clean up previous task runner
+            # Clean up previous task runner with enhanced safety
             if hasattr(self, 'task_runner') and self.task_runner:
-                if hasattr(self.task_runner, 'thread') and self.task_runner.thread:
-                    thread = self.task_runner.thread
-                    if thread.isRunning():
-                        logger.warning("Previous task runner thread still running, attempting to stop...")
-                        thread.quit()
-                        if not thread.wait(2000):
-                            logger.warning("Thread did not quit gracefully, terminating...")
-                            thread.terminate()
-                            thread.wait(1000)
-                    self.task_runner.thread = None
-                
-                self.task_runner = None
-                logger.debug("Cleaned up previous task runner")
+                try:
+                    # Use the new force_cleanup method for proper thread management
+                    self.task_runner.force_cleanup()
+                    logger.debug("Force cleaned up previous task runner")
+                    
+                    # Clear task runner reference
+                    self.task_runner = None
+                    
+                except Exception as thread_error:
+                    # Handle PyQt6 object deletion errors gracefully
+                    if "wrapped C/C++ object" in str(thread_error):
+                        logger.debug("PyQt6 object already deleted during cleanup")
+                    else:
+                        logger.warning(f"Error during thread cleanup: {thread_error}")
+                    
+                    # Force clear references even if cleanup failed
+                    self.task_runner = None
             
         except Exception as e:
             logger.warning(f"Error during ZIP processing cleanup: {e}")
-            # Silently continue to avoid crashes
+            # Force cleanup to prevent crashes
+            self.zip_task = None
+            self.task_runner = None
     
     def _reset_ui_state_for_new_processing(self):
         """Reset UI state for new ZIP processing"""
@@ -1421,10 +1427,13 @@ class MainWindow(QMainWindow):
         self._steam_restart_prompted = False  # Reset flag for next download
         self.zip_task = None  # Ensure ZIP task is cleaned up
         
-        # Clean up task runner and threads properly
+        # Clean up task runner and threads properly with enhanced safety
         if self.task_runner:
             try:
-                if hasattr(self.task_runner, 'thread') and self.task_runner.thread:
+                # Check if thread exists and is valid before accessing
+                if (hasattr(self.task_runner, 'thread') and 
+                    self.task_runner.thread is not None):
+                    
                     thread = self.task_runner.thread
                     if thread.isRunning():
                         thread.quit()
@@ -1432,14 +1441,26 @@ class MainWindow(QMainWindow):
                             logger.warning("Task runner thread did not finish cleanly")
                             thread.terminate()
                             thread.wait(1000)
-                    # Clear reference before deletion
-                    self.task_runner.thread = None
+                    
+                    # Clear reference safely
+                    try:
+                        self.task_runner.thread = None
+                    except:
+                        # Thread already deleted, which is fine
+                        pass
+                
+                # Clear task runner reference
+                self.task_runner = None
+                
             except Exception as e:
-                # Silenciar warning de deleção de C/C++ object - é normal no PyQt6
-                if "wrapped C/C++ object" not in str(e):
+                # Handle PyQt6 object deletion errors gracefully
+                if "wrapped C/C++ object" in str(e):
+                    logger.debug("PyQt6 object already deleted during UI reset")
+                else:
                     logger.warning(f"Error cleaning up task runner thread: {e}")
-            finally:
-                self.task_runner = None  # Clean up task runner reference
+                
+                # Force clear references even if cleanup failed
+                self.task_runner = None
 
         logger.debug("UI state fully reset, ready for next operation")
 
@@ -1776,6 +1797,28 @@ class MainWindow(QMainWindow):
                     logger.warning(f"Error cleaning up fix check thread: {e}")
                 # Ensure reference is cleared even on error
                 self.fix_check_thread = None
+        
+        # Clean up ZIP processing task runner if exists
+        if hasattr(self, 'task_runner') and self.task_runner:
+            try:
+                self.task_runner.force_cleanup()
+                self.task_runner = None
+                logger.debug("Cleaned up ZIP task runner on close")
+            except Exception as e:
+                if "wrapped C/C++ object" not in str(e):
+                    logger.warning(f"Error cleaning up ZIP task runner: {e}")
+                self.task_runner = None
+        
+        # Clean up any remaining active TaskRunner instances
+        try:
+            from utils.task_runner import TaskRunner
+            # Force cleanup of all active runners
+            for runner in TaskRunner._active_runners[:]:  # Copy list to avoid modification during iteration
+                runner.force_cleanup()
+            TaskRunner._active_runners.clear()
+            logger.debug("Cleaned up all remaining TaskRunner instances")
+        except Exception as e:
+            logger.warning(f"Error cleaning up remaining TaskRunner instances: {e}")
         
         # Process any remaining events to ensure clean shutdown
         QApplication.processEvents()

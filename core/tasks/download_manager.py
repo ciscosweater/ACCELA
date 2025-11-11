@@ -638,16 +638,21 @@ class DownloadManager(QObject):
                 finally:
                     self.download_task = None
             
-            # Limpar task runner
+            # Limpar task runner com force_cleanup
             if self.task_runner:
                 try:
-                    if hasattr(self.task_runner, 'thread') and self.task_runner.thread:
-                        thread = self.task_runner.thread
-                        if thread.isRunning():
-                            thread.quit()
-                            thread.wait(3000)
-                        # Limpar referência antes de deletar
-                        self.task_runner.thread = None
+                    if hasattr(self.task_runner, 'force_cleanup'):
+                        self.task_runner.force_cleanup()
+                        logger.debug("Used force_cleanup on download task runner")
+                    else:
+                        # Fallback para método antigo
+                        if hasattr(self.task_runner, 'thread') and self.task_runner.thread:
+                            thread = self.task_runner.thread
+                            if thread.isRunning():
+                                thread.quit()
+                                thread.wait(3000)
+                            # Limpar referência antes de deletar
+                            self.task_runner.thread = None
                 except Exception as e:
                     # Silenciar warning de deleção de C/C++ object - é normal no PyQt6
                     if "wrapped C/C++ object" not in str(e):

@@ -71,7 +71,7 @@ class TaskRunner:
         # --- MODIFICATION START ---
         # Connect the cleanup slot to remove the runner from the active list
         # once the task is complete.
-        self.worker.completed.connect(self._cleanup)
+        # Note: _cleanup is already connected to thread.finished above
         # --- MODIFICATION END ---
 
         # Start the thread
@@ -95,5 +95,52 @@ class TaskRunner:
         if self.worker and hasattr(self.worker, 'target_func'):
             func_name = self.worker.target_func.__name__
         logger.debug(f"Cleaning up TaskRunner instance for '{func_name}'.")
+        
+        # Ensure thread is properly stopped before cleanup
+        if self.thread and self.thread.isRunning():
+            logger.warning(f"Thread still running for '{func_name}', forcing quit...")
+            self.thread.quit()
+            if not self.thread.wait(1000):
+                logger.warning(f"Thread did not quit for '{func_name}', terminating...")
+                self.thread.terminate()
+                self.thread.wait(500)
+        
+        # Remove from active runners list
         if self in TaskRunner._active_runners:
             TaskRunner._active_runners.remove(self)
+        
+        # Clear references
+        self.thread = None
+        self.worker = None
+    
+    def force_cleanup(self):
+        """
+        Force cleanup of the TaskRunner and its thread.
+        This method should be called when we need to ensure immediate cleanup.
+        """
+        func_name = "unknown"
+        if self.worker and hasattr(self.worker, 'target_func'):
+            func_name = self.worker.target_func.__name__
+        
+        logger.debug(f"Force cleaning up TaskRunner instance for '{func_name}'.")
+        
+        try:
+            # Stop thread if running
+            if self.thread and self.thread.isRunning():
+                logger.warning(f"Force stopping thread for '{func_name}'...")
+                self.thread.quit()
+                if not self.thread.wait(1000):
+                    logger.warning(f"Thread did not quit gracefully for '{func_name}', terminating...")
+                    self.thread.terminate()
+                    self.thread.wait(500)
+            
+            # Remove from active runners
+            if self in TaskRunner._active_runners:
+                TaskRunner._active_runners.remove(self)
+                
+        except Exception as e:
+            logger.warning(f"Error during force cleanup of TaskRunner: {e}")
+        finally:
+            # Always clear references
+            self.thread = None
+            self.worker = None

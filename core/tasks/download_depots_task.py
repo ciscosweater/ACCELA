@@ -69,25 +69,44 @@ class DownloadDepotsTask(QObject):
         try:
             # Stop stream reader first
             if self._current_stream_reader:
-                self._current_stream_reader.stop()
+                try:
+                    self._current_stream_reader.stop()
+                except Exception as e:
+                    logger.debug(f"Error stopping stream reader: {e}")
                 
-            # Quit thread and wait for completion
-            if self._current_reader_thread.isRunning():
-                self._current_reader_thread.quit()
-                if not self._current_reader_thread.wait(5000):
-                    logger.warning("Reader thread did not finish cleanly, terminating")
-                    self._current_reader_thread.terminate()
-                    self._current_reader_thread.wait(2000)
+            # Quit thread and wait for completion with enhanced safety
+            if self._current_reader_thread:
+                try:
+                    if self._current_reader_thread.isRunning():
+                        self._current_reader_thread.quit()
+                        if not self._current_reader_thread.wait(5000):
+                            logger.warning("Reader thread did not finish cleanly, terminating")
+                            self._current_reader_thread.terminate()
+                            self._current_reader_thread.wait(2000)
                     
-            # Schedule deletion
-            self._current_reader_thread.deleteLater()
+                    # Schedule deletion with error handling
+                    try:
+                        self._current_reader_thread.deleteLater()
+                    except Exception as e:
+                        if "wrapped C/C++ object" not in str(e):
+                            logger.debug(f"Error deleting reader thread: {e}")
+                except Exception as e:
+                    if "wrapped C/C++ object" not in str(e):
+                        logger.debug(f"Error in reader thread cleanup: {e}")
+                        
+            # Delete stream reader with error handling
             if self._current_stream_reader:
-                self._current_stream_reader.deleteLater()
+                try:
+                    self._current_stream_reader.deleteLater()
+                except Exception as e:
+                    if "wrapped C/C++ object" not in str(e):
+                        logger.debug(f"Error deleting stream reader: {e}")
                 
         except Exception as e:
-            logger.error(f"Error cleaning up reader thread: {e}")
+            if "wrapped C/C++ object" not in str(e):
+                logger.error(f"Error cleaning up reader thread: {e}")
         finally:
-            # Clear references
+            # Always clear references
             self._current_reader_thread = None
             self._current_stream_reader = None
 
@@ -318,7 +337,7 @@ class DownloadDepotsTask(QObject):
                 "-manifest", str(manifest_id),
                 "-manifestfile", os.path.join('manifest', f"{depot_id}_{manifest_id}.manifest"),
                 "-depotkeys", keys_path, "-max-downloads", "25",
-                "-dir", download_dir
+                "-dir", download_dir, "--validate", "--no-compress"
             ])
 
         return commands, skipped_depots
