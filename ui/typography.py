@@ -30,6 +30,7 @@ class HeadingLabel(QLabel):
         self.setStyleSheet(f"""
             QLabel {{
                 color: {theme.colors.TEXT_PRIMARY};
+                font-family: '{Typography.get_font_family()}';
                 font-size: {size}px;
                 font-weight: {Typography.WEIGHT_BOLD};
                 margin-bottom: {theme.spacing.SM}px;
@@ -58,6 +59,7 @@ class BodyLabel(QLabel):
         self.setStyleSheet(f"""
             QLabel {{
                 color: {color};
+                font-family: '{Typography.get_font_family()}';
                 font-size: {Typography.BODY_SIZE}px;
                 font-weight: {weight};
             }}
@@ -78,6 +80,7 @@ class CaptionLabel(QLabel):
         self.setStyleSheet(f"""
             QLabel {{
                 color: {theme.colors.TEXT_SECONDARY};
+                font-family: '{Typography.get_font_family()}';
                 font-size: {Typography.CAPTION_SIZE}px;
                 font-weight: {Typography.WEIGHT_NORMAL};
             }}
@@ -98,6 +101,7 @@ class TitleLabel(QLabel):
         self.setStyleSheet(f"""
             QLabel {{
                 color: {theme.colors.PRIMARY};
+                font-family: '{Typography.get_font_family()}';
                 font-size: {Typography.H1_SIZE}px;
                 font-weight: {Typography.WEIGHT_BOLD};
                 text-align: center;

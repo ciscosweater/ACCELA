@@ -50,7 +50,7 @@ def main():
         if trixie_id != -1:
             font_families = QFontDatabase.applicationFontFamilies(trixie_id)
             if font_families:
-                font_name = font_families[0]
+                font_name = font_families[0]  # Use "TrixieCyrG-Plain" instead of "TrixieCyrG-Plain Regular"
                 font_loaded = True
                 logger.info(f"Loaded TrixieCyrG font: '{font_name}'")
         else:

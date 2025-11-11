@@ -92,8 +92,15 @@ class Typography:
     def get_font_family() -> str:
         """Get font family string with fallback"""
         from utils.settings import get_font_setting
-        selected_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular"
-        return selected_font
+        selected_font = str(get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular")
+        
+        # Map setting names to actual font family names
+        if selected_font == "TrixieCyrG-Plain Regular":
+            return "TrixieCyrG-Plain"  # Actual font family name
+        elif selected_font == "MotivaSansRegular":
+            return "Motiva Sans"  # Actual font family name
+        else:
+            return selected_font
 
 
 class Spacing:
@@ -112,7 +119,7 @@ class Spacing:
         return f"margin: {size}px;"
     
     @staticmethod
-    def get_padding(size: int, horizontal: int = None) -> str:
+    def get_padding(size: int, horizontal: int | None = None) -> str:
         """Generate padding string"""
         if horizontal is not None:
             return f"padding: {size}px {horizontal}px;"
@@ -169,7 +176,7 @@ class Animations:
     EASING_EASE_IN_OUT = "ease-in-out"
     
     @staticmethod
-    def get_transition(property: str, duration: str = None, easing: str = None) -> str:
+    def get_transition(property: str, duration: str | None = None, easing: str | None = None) -> str:
         """Generate transition string (PyQt6 compatible)"""
         # PyQt6 doesn't support CSS transitions, return empty string
         return ""

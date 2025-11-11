@@ -272,8 +272,7 @@ class GameDeletionDialog(QDialog):
         layout.setSpacing(Spacing.XS)
         
         title = QLabel("ACCELA Game Manager")
-        selected_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular"
-        title.setFont(QFont(selected_font, Typography.H3_SIZE, QFont.Weight.Bold))
+        title.setFont(QFont(Typography.get_font_family(), Typography.H3_SIZE, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {theme.colors.TEXT_ACCENT}; margin: 0; border: none; background: transparent;")
         layout.addWidget(title)
         
@@ -292,8 +291,7 @@ class GameDeletionDialog(QDialog):
         
         # Table header
         header_label = QLabel("Installed Games")
-        header_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular"
-        header_label.setFont(QFont(header_font, Typography.BODY_SIZE, QFont.Weight.Bold))
+        header_label.setFont(QFont(Typography.get_font_family(), Typography.BODY_SIZE, QFont.Weight.Bold))
         header_label.setStyleSheet(f"color: {theme.colors.TEXT_ACCENT}; margin: 0; margin-bottom: 6px; border: none; background: transparent;")
         layout.addWidget(header_label)
         
@@ -437,8 +435,7 @@ class GameDeletionDialog(QDialog):
         
         # Details title
         details_title = QLabel("Game Details")
-        details_font = get_font_setting("selected_font", "TrixieCyrG-Plain Regular") or "TrixieCyrG-Plain Regular"
-        details_title.setFont(QFont(details_font, Typography.BODY_SIZE, QFont.Weight.Bold))
+        details_title.setFont(QFont(Typography.get_font_family(), Typography.BODY_SIZE, QFont.Weight.Bold))
         details_title.setStyleSheet(f"color: {theme.colors.TEXT_ACCENT}; margin: 0; margin-bottom: 6px; border: none; background: transparent;")
         layout.addWidget(details_title)
         
