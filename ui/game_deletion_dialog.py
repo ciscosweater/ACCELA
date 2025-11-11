@@ -270,12 +270,12 @@ class GameDeletionDialog(QDialog):
         layout.setSpacing(Spacing.XS)
         
         title = QLabel("ACCELA Game Manager")
-        title.setFont(QFont(Typography.get_font_family(), Typography.H3_SIZE, QFont.Weight.Bold))
+        title.setFont(QFont(Typography.get_font_family(), Typography.H2_SIZE, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {theme.colors.TEXT_ACCENT}; margin: 0; border: none; background: transparent;")
         layout.addWidget(title)
         
         subtitle = QLabel("Select and delete games downloaded by ACCELA")
-        subtitle.setStyleSheet(f"color: {theme.colors.TEXT_SECONDARY}; {Typography.get_font_style(Typography.BODY_SIZE)}; margin: 0; border: none; background: transparent;")
+        subtitle.setStyleSheet(f"color: {theme.colors.TEXT_SECONDARY}; {Typography.get_font_style(Typography.H3_SIZE)}; margin: 0; border: none; background: transparent;")
         layout.addWidget(subtitle)
         
         return frame
@@ -289,7 +289,7 @@ class GameDeletionDialog(QDialog):
         
         # Table header
         header_label = QLabel("Installed Games")
-        header_label.setFont(QFont(Typography.get_font_family(), Typography.BODY_SIZE, QFont.Weight.Bold))
+        header_label.setFont(QFont(Typography.get_font_family(), Typography.H3_SIZE, QFont.Weight.Bold))
         header_label.setStyleSheet(f"color: {theme.colors.TEXT_ACCENT}; margin: 0; margin-bottom: 6px; border: none; background: transparent;")
         layout.addWidget(header_label)
         
@@ -304,7 +304,7 @@ class GameDeletionDialog(QDialog):
         vertical_header = self.games_table.verticalHeader()
         if vertical_header is not None:
             vertical_header.setVisible(False)
-            vertical_header.setDefaultSectionSize(40)
+            vertical_header.setDefaultSectionSize(50)
 
         # Configure table
         self.games_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -328,8 +328,8 @@ class GameDeletionDialog(QDialog):
             vertical_header = self.games_table.verticalHeader()
             if vertical_header:
                 vertical_header.setVisible(False)
-                vertical_header.setDefaultSectionSize(40)  # Altura adequada para linhas
-                vertical_header.setMinimumSectionSize(40)
+                vertical_header.setDefaultSectionSize(50)  # Altura adequada para linhas
+                vertical_header.setMinimumSectionSize(50)
         
         # Estilo da tabela melhorado
         self.games_table.setStyleSheet(f"""
@@ -340,11 +340,11 @@ class GameDeletionDialog(QDialog):
                 gridline-color: {theme.colors.BORDER};
                 selection-background-color: {theme.colors.PRIMARY};
                 alternate-background-color: {theme.colors.SURFACE};
-                {Typography.get_font_style(Typography.BODY_SIZE)};
+                {Typography.get_font_style(Typography.H3_SIZE)};
                 outline: none;
             }}
             QTableWidget::item {{
-                padding: 8px 6px;
+                padding: 12px 8px;
                 border-bottom: 1px solid {theme.colors.BORDER};
                 background-color: transparent;
             }}
@@ -381,10 +381,10 @@ class GameDeletionDialog(QDialog):
             QHeaderView::section {{
                 background-color: {theme.colors.SURFACE};
                 color: {theme.colors.TEXT_PRIMARY};
-                padding: 10px 8px;
+                padding: 12px 10px;
                 border: 1px solid {theme.colors.BORDER};
                 font-weight: bold;
-                {Typography.get_font_style(Typography.BODY_SIZE)};
+                {Typography.get_font_style(Typography.H3_SIZE)};
                 text-align: center;
             }}
             QHeaderView::section:first {{
@@ -398,23 +398,7 @@ class GameDeletionDialog(QDialog):
         
         layout.addWidget(self.games_table)
         
-        # Select all/none buttons
-        select_layout = QHBoxLayout()
-        select_layout.setContentsMargins(0, Spacing.XS, 0, 0)  # Margens adequadas
-        select_layout.setSpacing(Spacing.SM)  # Adequate spacing between buttons
-        
-        self.select_all_btn = HoverButton("Select All")
-        self.select_all_btn.clicked.connect(self._select_all_games)
-        self.select_all_btn.setFixedHeight(30)  # Fixed height for consistency
-        select_layout.addWidget(self.select_all_btn)
-        
-        self.select_none_btn = HoverButton("Select None")
-        self.select_none_btn.clicked.connect(self._select_none_games)
-        self.select_none_btn.setFixedHeight(30)  # Fixed height for consistency
-        select_layout.addWidget(self.select_none_btn)
-        
-        select_layout.addStretch()
-        layout.addLayout(select_layout)
+
         
         return frame
     
@@ -427,15 +411,25 @@ class GameDeletionDialog(QDialog):
         
         # Details title
         details_title = QLabel("Game Details")
-        details_title.setFont(QFont(Typography.get_font_family(), Typography.BODY_SIZE, QFont.Weight.Bold))
+        details_title.setFont(QFont(Typography.get_font_family(), Typography.H3_SIZE, QFont.Weight.Bold))
         details_title.setStyleSheet(f"color: {theme.colors.TEXT_ACCENT}; margin: 0; margin-bottom: 6px; border: none; background: transparent;")
         layout.addWidget(details_title)
         
         # Game info
         self.game_info_text = QTextEdit()
         self.game_info_text.setReadOnly(True)
-        self.game_info_text.setMaximumHeight(140)  # Altura adequada para detalhes
-        self.game_info_text.setMinimumHeight(100)  # Minimum height
+        self.game_info_text.setMaximumHeight(160)  # Altura aumentada para detalhes
+        self.game_info_text.setMinimumHeight(120)  # Minimum height aumentado
+        self.game_info_text.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {theme.colors.SURFACE};
+                color: {theme.colors.TEXT_PRIMARY};
+                border: 1px solid {theme.colors.BORDER};
+                padding: 12px;
+                font-family: {Typography.get_font_family()};
+                {Typography.get_font_style(Typography.H3_SIZE)};
+            }}
+        """)
         layout.addWidget(self.game_info_text)
         
         # Compatdata option
@@ -445,6 +439,7 @@ class GameDeletionDialog(QDialog):
         
         self.delete_compatdata_checkbox = CustomCheckBox("Delete save data (compatdata folder)")
         self.delete_compatdata_checkbox.setChecked(False)  # Default: preserve saves
+        self.delete_compatdata_checkbox.setFont(QFont(Typography.get_font_family(), Typography.BODY_SIZE, QFont.Weight.Bold))
         self.delete_compatdata_checkbox.setToolTip(
             "Check this box to delete the game's save data and configuration files.\n"
             "The compatdata folder contains:\n"
@@ -457,7 +452,7 @@ class GameDeletionDialog(QDialog):
         
         # Compatdata info label
         compatdata_info = QLabel("Uncheck to preserve save games in compatdata/APPID/")
-        compatdata_info.setStyleSheet(f"color: {theme.colors.TEXT_SECONDARY}; font-style: italic; {Typography.get_font_style(Typography.CAPTION_SIZE)}; padding: {Spacing.XS}px;")
+        compatdata_info.setStyleSheet(f"color: {theme.colors.TEXT_SECONDARY}; font-style: italic; {Typography.get_font_style(Typography.BODY_SIZE)}; padding: {Spacing.XS}px;")
         compatdata_layout.addWidget(compatdata_info)
         
         layout.addWidget(compatdata_group)
@@ -473,7 +468,7 @@ class GameDeletionDialog(QDialog):
             "• This action cannot be undone\n"
             "• Only ACCELA-downloaded games will be shown"
         )
-        warning_text.setStyleSheet(f"color: {theme.colors.TEXT_PRIMARY}; padding: {Spacing.XS}px; {Typography.get_font_style(Typography.CAPTION_SIZE)};")
+        warning_text.setStyleSheet(f"color: {theme.colors.TEXT_PRIMARY}; padding: {Spacing.XS}px; {Typography.get_font_style(Typography.BODY_SIZE)};")
         warning_layout.addWidget(warning_text)
         
         layout.addWidget(warning_group)
@@ -484,7 +479,7 @@ class GameDeletionDialog(QDialog):
     def _create_action_buttons(self) -> QFrame:
         """Create action buttons."""
         frame = QFrame()
-        frame.setMaximumHeight(45)  # Adequate height for buttons
+        frame.setMaximumHeight(55)  # Increased height for larger buttons
         layout = QHBoxLayout(frame)
         layout.setContentsMargins(Spacing.MD, Spacing.XS, Spacing.MD, Spacing.XS)  # Margens adequadas
         layout.setSpacing(Spacing.MD)  # Adequate spacing between buttons
@@ -492,7 +487,8 @@ class GameDeletionDialog(QDialog):
         # Refresh button
         self.refresh_btn = HoverButton("Refresh List")
         self.refresh_btn.clicked.connect(self._load_games)
-        self.refresh_btn.setFixedHeight(32)  # Fixed height for consistency
+        self.refresh_btn.setFixedHeight(40)  # Increased height for better touch targets
+        self.refresh_btn.setFont(QFont(Typography.get_font_family(), Typography.H3_SIZE, QFont.Weight.Bold))
         layout.addWidget(self.refresh_btn)
         
         layout.addStretch()
@@ -501,13 +497,15 @@ class GameDeletionDialog(QDialog):
         self.delete_btn = HoverButton("Delete Selected Games")
         self.delete_btn.clicked.connect(self._start_deletion)
         self.delete_btn.setEnabled(False)
-        self.delete_btn.setFixedHeight(32)  # Fixed height for consistency
+        self.delete_btn.setFixedHeight(40)  # Increased height for better touch targets
+        self.delete_btn.setFont(QFont(Typography.get_font_family(), Typography.H3_SIZE, QFont.Weight.Bold))
         layout.addWidget(self.delete_btn)
         
         # Close button
         self.close_btn = HoverButton("Close")
         self.close_btn.clicked.connect(self.close)
-        self.close_btn.setFixedHeight(32)  # Fixed height for consistency
+        self.close_btn.setFixedHeight(40)  # Increased height for better touch targets
+        self.close_btn.setFont(QFont(Typography.get_font_family(), Typography.H3_SIZE, QFont.Weight.Bold))
         layout.addWidget(self.close_btn)
         
         return frame
@@ -515,25 +513,26 @@ class GameDeletionDialog(QDialog):
     def _create_progress_frame(self) -> QFrame:
         """Create deletion progress frame."""
         frame = ModernFrame()
-        frame.setMaximumHeight(70)  # Altura adequada para progresso
+        frame.setMaximumHeight(85)  # Altura aumentada para progresso
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(Spacing.MD, Spacing.SM, Spacing.MD, Spacing.SM)  # Margens adequadas
         layout.setSpacing(Spacing.SM)  # Spacing adequado
         
         # Progress label
         self.progress_label = QLabel("Preparing deletion...")
-        self.progress_label.setStyleSheet(f"color: {theme.colors.TEXT_PRIMARY}; {Typography.get_font_style(Typography.BODY_SIZE)};")
+        self.progress_label.setStyleSheet(f"color: {theme.colors.TEXT_PRIMARY}; {Typography.get_font_style(Typography.H3_SIZE)};")
         layout.addWidget(self.progress_label)
         
         # Progress bar
         self.progress_bar = EnhancedProgressBar()
-        self.progress_bar.setMaximumHeight(18)  # Altura adequada
+        self.progress_bar.setMaximumHeight(24)  # Altura aumentada
         layout.addWidget(self.progress_bar)
         
         # Cancel button
         self.cancel_btn = HoverButton("Cancel")
         self.cancel_btn.clicked.connect(self._cancel_deletion)
-        self.cancel_btn.setFixedHeight(24)  # Fixed height for consistency
+        self.cancel_btn.setFixedHeight(32)  # Increased height for consistency
+        self.cancel_btn.setFont(QFont(Typography.get_font_family(), Typography.H3_SIZE, QFont.Weight.Bold))
         layout.addWidget(self.cancel_btn)
         
         return frame
@@ -680,23 +679,7 @@ class GameDeletionDialog(QDialog):
         self.delete_btn.setEnabled(len(selected_games) > 0)
         self.delete_btn.setText(f"Delete Selected Games ({len(selected_games)})")
     
-    def _select_all_games(self):
-        """Seleciona todos os jogos."""
-        for row in range(self.games_table.rowCount()):
-            checkbox_container = self.games_table.cellWidget(row, 0)
-            if checkbox_container:
-                checkbox = checkbox_container.findChild(QCheckBox)
-                if checkbox:
-                    checkbox.setChecked(True)
-    
-    def _select_none_games(self):
-        """Deseleciona todos os jogos."""
-        for row in range(self.games_table.rowCount()):
-            checkbox_container = self.games_table.cellWidget(row, 0)
-            if checkbox_container:
-                checkbox = checkbox_container.findChild(QCheckBox)
-                if checkbox:
-                    checkbox.setChecked(False)
+
     
     def _start_deletion(self):
         """Start deletion process."""
