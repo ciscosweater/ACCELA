@@ -5,6 +5,7 @@ import os
 import re
 import psutil
 import shlex
+import threading
 from PyQt6.QtCore import QObject, pyqtSignal, QThread
 
 logger = logging.getLogger(__name__)
@@ -135,16 +136,36 @@ class DownloadDepotsTask(QObject):
                     if not self._should_stop:
                         self._current_process.wait()
                     
-                    # Limpar recursos da thread e processo
-                    try:
-                        stream_reader.stop()
-                        reader_thread.quit()
-                        if not reader_thread.wait(3000):  # Timeout de 3 segundos
-                            logger.warning("Reader thread did not finish cleanly")
-                            reader_thread.terminate()
-                            reader_thread.wait(1000)  # Wait for forced completion
-                    except Exception as e:
-                        logger.error(f"Error cleaning up reader thread: {e}")
+                    # Limpar recursos da thread e processo com sincronização
+                    cleanup_event = threading.Event()
+                    
+                    def cleanup_reader():
+                        """Synchronized cleanup of reader thread"""
+                        try:
+                            stream_reader.stop()
+                            if reader_thread.isRunning():
+                                reader_thread.quit()
+                                if not reader_thread.wait(5000):  # Increased timeout
+                                    logger.warning("Reader thread did not finish cleanly, terminating")
+                                    reader_thread.terminate()
+                                    reader_thread.wait(2000)  # Wait for forced completion
+                        except Exception as e:
+                            logger.error(f"Error cleaning up reader thread: {e}")
+                        finally:
+                            cleanup_event.set()
+                    
+                    # Execute cleanup directly to ensure it completes
+                    cleanup_reader()
+                    
+                    # Wait for cleanup completion with timeout
+                    if not cleanup_event.wait(timeout=10):  # 10 second timeout
+                        logger.error("Reader thread cleanup timed out")
+                    
+                    # Additional safety check
+                    if reader_thread.isRunning():
+                        logger.warning("Force terminating reader thread after timeout")
+                        reader_thread.terminate()
+                        reader_thread.wait(1000)
                     
                     # Check process result BEFORE cleanup
                     process_returncode = self._current_process.returncode if self._current_process else None

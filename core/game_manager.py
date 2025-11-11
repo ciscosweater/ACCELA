@@ -34,7 +34,7 @@ class DirectorySizeWorker(QThread):
     
     @staticmethod
     def _calculate_directory_size_optimized(path: str, max_depth: int = 20) -> int:
-        """Calculates size using os.scandir with cache and advanced optimizations."""
+        """Calculates size using os.scandir with early termination and limits."""
         # Validate path before processing
         if not path or not isinstance(path, str):
             logger.debug("Invalid path provided for size calculation")
@@ -68,10 +68,25 @@ class DirectorySizeWorker(QThread):
         dir_count = 0
         large_files = 0
         
+        # Performance limits to prevent excessive scanning
+        MAX_FILES = 10000  # Limit files to prevent excessive scanning
+        MAX_DIRS = 1000    # Limit directories to prevent excessive recursion
+        SAMPLE_SIZE = 1000  # Sample size for estimation when limits hit
+        
         try:
             with os.scandir(path) as entries:
                 for entry in entries:
-                    # Removed file limit for accurate calculation - large games need complete counting
+                    # Early termination for file count limit
+                    if file_count > MAX_FILES:
+                        logger.warning(f"Directory scan limit reached ({MAX_FILES} files): {path}")
+                        # Estimate total size based on sample
+                        if file_count > SAMPLE_SIZE:
+                            avg_file_size = total_size / file_count
+                            estimated_total = int(avg_file_size * file_count * 1.2)  # 20% buffer
+                            logger.debug(f"Estimated size for {os.path.basename(path)}: {GameManager._format_size(estimated_total)}")
+                            _DIRECTORY_SIZE_CACHE[cache_key] = (estimated_total, current_time)
+                            return estimated_total
+                        break
                         
                     try:
                         stat_info = entry.stat()
@@ -86,10 +101,21 @@ class DirectorySizeWorker(QThread):
                             file_count += 1
                             
                         elif entry.is_dir() and max_depth > 0:
+                            # Early termination for directory count limit
+                            if dir_count > MAX_DIRS:
+                                logger.warning(f"Directory recursion limit reached ({MAX_DIRS} dirs): {path}")
+                                break
+                                
                             # Avoid recursion in system directories
                             dir_name = entry.name.lower()
-                            if dir_name in ['node_modules', '.git', '__pycache__', 'venv', '.venv']:
+                            if dir_name in ['node_modules', '.git', '__pycache__', 'venv', '.venv', 
+                                          'target', 'build', 'dist', '.vscode', '.idea']:
                                 logger.debug(f"Skipping system directory: {entry.path}")
+                                continue
+                            
+                            # Skip hidden directories (performance optimization)
+                            if dir_name.startswith('.'):
+                                logger.debug(f"Skipping hidden directory: {entry.path}")
                                 continue
                             
                             # Recursive call with depth limit
@@ -328,8 +354,13 @@ class GameManager:
                 logger.error(f"ACF file too large ({file_size} bytes): {acf_path}")
                 return None
             
-            with open(acf_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
+            # Use context manager for proper file handle cleanup
+            try:
+                with open(acf_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+            except (OSError, IOError) as e:
+                logger.error(f"Failed to open ACF file {acf_path}: {e}")
+                return None
                 
             if not content.strip():
                 logger.warning(f"ACF file is empty after reading: {acf_path}")

@@ -31,6 +31,16 @@ class MinimalDownloadWidget(QWidget):
         self.current_state = "idle"  # idle, downloading, paused, completed, error
         self.current_speed = "0 B/s"
         self.progress = 0
+        
+        # Debouncing timers for performance
+        self._progress_timer = QTimer()
+        self._progress_timer.setSingleShot(True)
+        self._pending_progress = 0
+        
+        self._speed_timer = QTimer()
+        self._speed_timer.setSingleShot(True)
+        self._pending_speed = ""
+        
         self._setup_ui()
         self._set_idle_state()
 
@@ -161,6 +171,10 @@ class MinimalDownloadWidget(QWidget):
         self.pause_btn.clicked.connect(self.pause_clicked.emit)
         self.resume_btn.clicked.connect(self.resume_clicked.emit)
         self.cancel_btn.clicked.connect(self.cancel_clicked.emit)
+        
+        # Connect debouncing timers
+        self._progress_timer.timeout.connect(self._apply_progress_update)
+        self._speed_timer.timeout.connect(self._apply_speed_update)
 
     def _create_fallback_image(self):
         """Create a fallback placeholder image when no game image is available"""
@@ -371,14 +385,26 @@ class MinimalDownloadWidget(QWidget):
         self.cancel_btn.hide()
 
     def update_progress(self, value):
-        """Update progress"""
+        """Debounced progress update to improve performance"""
         self.progress = value
-        self._update_progress_bar(value)
+        self._pending_progress = value
+        self._progress_timer.start(50)  # 50ms debounce
+        
+    def _apply_progress_update(self):
+        """Actually apply the progress update"""
+        if hasattr(self, '_pending_progress'):
+            self._update_progress_bar(self._pending_progress)
 
     def update_speed(self, speed_text):
-        """Update download speed"""
+        """Debounced speed update to improve performance"""
         self.current_speed = speed_text
-        self.speed_label.setText(speed_text)
+        self._pending_speed = speed_text
+        self._speed_timer.start(100)  # 100ms debounce for speed updates
+        
+    def _apply_speed_update(self):
+        """Actually apply the speed update"""
+        if hasattr(self, '_pending_speed') and hasattr(self, 'speed_label'):
+            self.speed_label.setText(self._pending_speed)
 
     def update_status(self, message):
         """Update detailed status message - removed"""

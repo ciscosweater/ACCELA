@@ -6,6 +6,8 @@ import hashlib
 import logging
 import requests
 import time
+import weakref
+import gc
 from typing import Optional, Dict, Any, Tuple
 from collections import OrderedDict
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
@@ -14,7 +16,7 @@ from PyQt6.QtGui import QPixmap
 logger = logging.getLogger(__name__)
 
 class ImageCacheManager(QObject):
-    """Manages caching of game header images"""
+    """Manages caching of game header images with memory pressure handling"""
     
     # Signals
     image_cached = pyqtSignal(str, str)  # app_id, cache_path
@@ -29,13 +31,18 @@ class ImageCacheManager(QObject):
         self.cache_dir = cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
         
-        # Enhanced cache settings
-        self.max_cache_size_mb = 50   # Reduced from 100MB to prevent memory exhaustion
+        # Optimized cache settings for memory efficiency
+        self.max_cache_size_mb = 20   # Reduced from 50MB for memory pressure
         self.max_age_days = 7         # Reduced from 30 days for more aggressive cleanup
-        self.max_file_count = 1000    # Maximum number of cached files
+        self.max_file_count = 500     # Reduced from 1000 for memory efficiency
+        
+        # Memory tracking
+        self._current_memory_mb = 0
+        self._memory_pressure_threshold = 0.8  # Trigger cleanup at 80%
         
         # LRU Cache tracking (in-memory for fast access)
         self._lru_cache = OrderedDict()  # app_id_url -> (filepath, access_time, size)
+        self._weak_cache = weakref.WeakValueDictionary()  # Weak references for QPixmap
         self._cache_loaded = False
         
         logger.info(f"Image cache initialized at: {self.cache_dir}")
@@ -110,19 +117,34 @@ class ImageCacheManager(QObject):
         return True
     
     def get_cached_image(self, app_id: str, url: str) -> Optional[QPixmap]:
-        """Get cached image if available"""
+        """Get cached image if available with memory pressure handling"""
         if not self.is_cached(app_id, url):
             return None
         
         cache_path = self.get_cache_path(app_id, url)
         cache_key = f"{app_id}_{os.path.basename(cache_path)}"
         
+        # Check weak cache first (memory efficient)
+        if cache_key in self._weak_cache:
+            weak_ref = self._weak_cache[cache_key]
+            if weak_ref is not None:
+                logger.debug(f"Using weak cached image for app {app_id}")
+                return weak_ref
+        
         try:
+            # Check memory pressure before loading
+            if hasattr(self, '_check_memory_pressure'):
+                self._check_memory_pressure()
+            
             pixmap = QPixmap(cache_path)
             if not pixmap.isNull():
                 # Update LRU access
                 file_size = os.path.getsize(cache_path)
                 self._update_lru_access(cache_key, cache_path, file_size)
+                
+                # Store in weak cache for memory efficiency
+                self._weak_cache[cache_key] = pixmap
+                self._current_memory_mb += file_size / (1024 * 1024)
                 
                 logger.debug(f"Loaded cached image for app {app_id}")
                 return pixmap
@@ -210,11 +232,51 @@ class ImageCacheManager(QObject):
                 return
             
             # Evict based on size limit
-            target_size = self.max_cache_size_mb * 0.8 * 1024 * 1024  # 80% of max
+            target_size = int(self.max_cache_size_mb * 0.8 * 1024 * 1024)  # 80% of max
             self._evict_lru_files(target_size=target_size)
             
         except Exception as e:
             logger.error(f"Error during enhanced cache cleanup: {e}")
+    
+    def _check_memory_pressure(self):
+        """Check if we're approaching memory limits and trigger cleanup"""
+        if self._current_memory_mb > self.max_cache_size_mb * self._memory_pressure_threshold:
+            logger.warning(f"Memory pressure detected: {self._current_memory_mb:.1f}MB > {self.max_cache_size_mb * self._memory_pressure_threshold:.1f}MB")
+            self._emergency_cleanup()
+    
+    def _emergency_cleanup(self):
+        """Aggressive cleanup when memory pressure detected"""
+        try:
+            # Remove oldest 50% of cache immediately
+            items_to_remove = len(self._lru_cache) // 2
+            removed_count = 0
+            
+            # Sort by access time (oldest first)
+            sorted_items = sorted(self._lru_cache.items(), key=lambda x: x[1][1])
+            
+            for cache_key, (filepath, _, size) in sorted_items[:items_to_remove]:
+                try:
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+                    
+                    # Remove from both caches
+                    self._lru_cache.pop(cache_key, None)
+                    self._weak_cache.pop(cache_key, None)
+                    
+                    # Update memory tracking
+                    self._current_memory_mb -= size / (1024 * 1024)
+                    removed_count += 1
+                    
+                except Exception as e:
+                    logger.warning(f"Error in emergency cleanup for {cache_key}: {e}")
+            
+            # Force garbage collection
+            gc.collect()
+            
+            logger.info(f"Emergency cleanup: removed {removed_count} files, freed memory")
+            
+        except Exception as e:
+            logger.error(f"Error during emergency cleanup: {e}")
     
     def _evict_lru_files(self, target_count: Optional[int] = None, target_size: Optional[int] = None):
         """Evict least recently used files from cache"""

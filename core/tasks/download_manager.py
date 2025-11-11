@@ -411,7 +411,7 @@ class DownloadManager(QObject):
         logger.debug(f"Download state changed to: {new_state.value}")
     
     def _terminate_process(self):
-        """Termina processo de forma segura"""
+        """Terminate process with proper resource cleanup"""
         try:
             if self.current_process and self.current_process.is_running():
                 # Tentar terminação gentil primeiro
@@ -429,6 +429,14 @@ class DownloadManager(QObject):
                 logger.info("Process terminated successfully")
         except Exception as e:
             logger.error(f"Error terminating process: {e}")
+        finally:
+            # Explicitly close process handle to prevent leaks
+            try:
+                if self.current_process:
+                    # Close the process handle
+                    self.current_process = None
+            except Exception as e:
+                logger.warning(f"Error closing process handle: {e}")
     
     def _monitor_download(self):
         """Monitora estado do processo e download com race condition prevention"""
@@ -569,13 +577,14 @@ class DownloadManager(QObject):
     
     def cleanup(self):
         """
-        Limpa recursos ao destruir o manager.
+        Enhanced cleanup with proper resource management.
         
         Garante que:
         - Timer seja parado
         - Processos sejam terminados gracefulmente
         - Threads sejam limpas
         - Recursos sejam liberados
+        - Process handles sejam fechados
         """
         try:
             logger.info("Cleaning up DownloadManager resources...")
@@ -584,9 +593,20 @@ class DownloadManager(QObject):
             if hasattr(self, 'monitor_timer'):
                 self.monitor_timer.stop()
             
-            # Terminar processo ativo
-            if self.current_process and self.current_process.is_running():
-                self._terminate_process()
+            # Terminar processo ativo com cleanup completo
+            if self.current_process:
+                try:
+                    if self.current_process.is_running():
+                        self._terminate_process()
+                    else:
+                        # Even if not running, close the handle
+                        self.current_process = None
+                except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                    logger.debug(f"Process already terminated: {e}")
+                    self.current_process = None
+                except Exception as e:
+                    logger.error(f"Error in process cleanup: {e}")
+                    self.current_process = None
             
             # Limpar threads ativas
             if hasattr(self, '_active_threads'):
@@ -602,10 +622,21 @@ class DownloadManager(QObject):
                     finally:
                         self._active_threads.discard(thread)
             
+            # Limpar task runner
+            if self.task_runner:
+                try:
+                    if hasattr(self.task_runner, 'thread') and self.task_runner.thread:
+                        if self.task_runner.thread.isRunning():
+                            self.task_runner.thread.quit()
+                            self.task_runner.thread.wait(3000)
+                except Exception as e:
+                    logger.warning(f"Error cleaning up task runner: {e}")
+                finally:
+                    self.task_runner = None
+            
             # Limpar referências
             self.current_process = None
             self.download_task = None
-            self.task_runner = None
             self.current_session = None
             
             logger.info("DownloadManager cleanup completed")
