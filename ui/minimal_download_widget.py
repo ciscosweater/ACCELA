@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 
 class MinimalDownloadWidget(QWidget):
     """
-    Widget minimalista e elegante que combina:
-    - Status do download
-    - Barra de progresso integrada
-    - Velocidade de download
-    - Controles (pause/resume/cancel)
+    Minimalist and elegant widget that combines:
+    - Download status
+    - Integrated progress bar
+    - Download speed
+    - Controls (pause/resume/cancel)
     """
 
     # Signals
@@ -49,14 +49,14 @@ class MinimalDownloadWidget(QWidget):
             }}
         """)
 
-        # Linha 1: Imagem + Nome do jogo
+        # Line 1: Image + Game name
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(16, 0, 16, 0)
         header_layout.setSpacing(12)
 
-        # Container para imagem do jogo - proporção Steam header (920x430 ≈ 2.14:1)
+        # Container for game image - Steam header ratio (920x430 ≈ 2.14:1)
         self.game_image_label = QLabel()
-        self.game_image_label.setFixedSize(120, 56)  # Proporção Steam header reduzida
+        self.game_image_label.setFixedSize(120, 56)  # Reduced Steam header ratio
         self.game_image_label.setStyleSheet(f"""
             QLabel {{
                 background: transparent;
@@ -66,7 +66,7 @@ class MinimalDownloadWidget(QWidget):
         """)
         self.game_image_label.hide()
 
-        # Nome do jogo
+        # Game name
         self.game_name_label = QLabel("Game Name")
         self.game_name_label.setStyleSheet(f"""
             QLabel {{
@@ -94,7 +94,7 @@ class MinimalDownloadWidget(QWidget):
         header_layout.addWidget(self.game_name_label)
         header_layout.addStretch()
 
-        # Linha 2: Barra de progresso
+        # Line 2: Progress bar
         self.progress_container = QWidget()
         self.progress_container.setFixedHeight(6)
         self.progress_container.setStyleSheet(f"""
@@ -118,14 +118,14 @@ class MinimalDownloadWidget(QWidget):
         self.progress_animation.setDuration(300)
         self.progress_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-        # Linha 3: Status detalhado + velocidade + controles
+        # Line 3: Detailed status + speed + controls
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(16, 4, 16, 0)
         bottom_layout.setSpacing(12)
 
 
 
-        # Velocidade label
+        # Speed label
         self.speed_label = QLabel("")
         self.speed_label.setStyleSheet(f"""
             QLabel {{
@@ -153,12 +153,12 @@ class MinimalDownloadWidget(QWidget):
         bottom_layout.addWidget(self.resume_btn)
         bottom_layout.addWidget(self.cancel_btn)
 
-        # Adicionar layouts ao container principal
+        # Add layouts to main container
         layout.addLayout(header_layout)
         layout.addWidget(self.progress_container)
         layout.addLayout(bottom_layout)
 
-        # Conectar signals
+        # Connect signals
         self.pause_btn.clicked.connect(self.pause_clicked.emit)
         self.resume_btn.clicked.connect(self.resume_clicked.emit)
         self.cancel_btn.clicked.connect(self.cancel_clicked.emit)
@@ -202,7 +202,7 @@ class MinimalDownloadWidget(QWidget):
         btn.setFixedSize(80, 30)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        # Estilo base
+        # Base style
         base_style = f"""
             QPushButton {{
                 background: {theme.colors.SURFACE};
@@ -277,7 +277,7 @@ class MinimalDownloadWidget(QWidget):
             self.game_image_label.setPixmap(fallback_pixmap)
             self.game_image_label.show()
         
-        # Mostrar nome do jogo se fornecido
+        # Show game name if provided
         if game_name:
             self.game_name_label.setText(game_name)
             self.game_name_label.show()

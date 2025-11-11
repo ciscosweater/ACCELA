@@ -32,13 +32,14 @@ class CustomTitleBar(QFrame):
         self.parent = parent
         self.drag_pos = None
         self.setFixedHeight(35)  # Aumentado para evitar corte e melhor proporção
-        from .theme import theme
+        from .theme import get_current_theme
+
+        current_theme = get_current_theme()
 
         self.setStyleSheet(f"""
             QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {theme.colors.BACKGROUND}, stop:1 {theme.colors.SURFACE});
-                border-top: 1px solid {theme.colors.BORDER};
+                background: {current_theme.colors.BACKGROUND};
+                border-top: 1px solid {current_theme.colors.BORDER};
             }}
         """)
         logger.debug("CustomTitleBar initialized.")
@@ -70,7 +71,9 @@ class CustomTitleBar(QFrame):
                 self.navi_label.setMinimumWidth(target_width)
 
             # Remover borda estranha do navi.gif
-            from .theme import theme
+            from .theme import get_current_theme
+
+            current_theme = get_current_theme()
 
             self.navi_label.setStyleSheet(f"""
                 QLabel {{
@@ -223,9 +226,10 @@ class CustomTitleBar(QFrame):
                 QPainter.CompositionMode.CompositionMode_SourceIn
             )
 
-            from .theme import theme
+            from .theme import get_current_theme
 
-            painter.fillRect(pixmap.rect(), QColor(theme.colors.TEXT_ACCENT))
+            current_theme = get_current_theme()
+            painter.fillRect(pixmap.rect(), QColor(current_theme.colors.TEXT_ACCENT))
 
             painter.end()
 
@@ -234,23 +238,6 @@ class CustomTitleBar(QFrame):
             button.setIcon(icon)
             button.setIconSize(icon_size)
             button.setFixedSize(22, 22)  # Botões maiores para title bar aumentada
-            from .theme import theme
-
-            button.setStyleSheet(f"""
-                QPushButton {{
-                    border: 1px solid {theme.colors.BORDER};
-                    border-radius: 4px;
-                    background: {theme.colors.SURFACE};
-                }}
-                QPushButton:hover {{
-                    background: {theme.colors.PRIMARY};
-                    border: 1px solid {theme.colors.PRIMARY};
-                }}
-                QPushButton:pressed {{
-                    background: {theme.colors.PRIMARY_DARK};
-                    border: 1px solid {theme.colors.PRIMARY_DARK};
-                }}
-            """)
             button.clicked.connect(on_click)
             return button
         except Exception as e:
@@ -268,25 +255,27 @@ class CustomTitleBar(QFrame):
             button = QPushButton(text)
             button.setToolTip(tooltip)
             button.setFixedSize(22, 22)  # Botões maiores para title bar aumentada
-            from .theme import theme
+            from .theme import get_current_theme
+
+            current_theme = get_current_theme()
 
             button.setStyleSheet(f"""
                 QPushButton {{
-                    border: 1px solid {theme.colors.BORDER};
+                    border: 1px solid {current_theme.colors.BORDER};
                     border-radius: 4px;
-                    color: {theme.colors.TEXT_ACCENT};
+                    color: {current_theme.colors.TEXT_ACCENT};
                     font-size: 11px;
                     font-weight: bold;
-                    background: {theme.colors.SURFACE};
+                    background: {current_theme.colors.SURFACE};
                 }}
                 QPushButton:hover {{
-                    background: {theme.colors.PRIMARY};
-                    color: {theme.colors.TEXT_ON_PRIMARY};
-                    border: 1px solid {theme.colors.PRIMARY};
+                    background: {current_theme.colors.PRIMARY};
+                    color: {current_theme.colors.TEXT_ON_PRIMARY};
+                    border: 1px solid {current_theme.colors.PRIMARY};
                 }}
                 QPushButton:pressed {{
-                    background: {theme.colors.PRIMARY_DARK};
-                    border: 1px solid {theme.colors.PRIMARY_DARK};
+                    background: {current_theme.colors.PRIMARY_DARK};
+                    border: 1px solid {current_theme.colors.PRIMARY_DARK};
                 }}
             """)
             button.clicked.connect(on_click)
