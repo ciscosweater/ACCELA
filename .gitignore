@@ -61,3 +61,7 @@ data/sessions/download_sessions.json
 # Development documentation
 CLAUDE.md
 AGENTS.md
+
+# Release files
+release/
+ACCELA-RELEASE-*.tar.gz
