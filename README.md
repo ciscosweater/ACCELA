@@ -91,9 +91,7 @@ For issues and suggestions, check the documentation or contact the developer.
 
 ## Credits and Acknowledgments
 
-**Original ACCELA**: The original ACCELA project was created by an unknown developer. This repository is a modified and enhanced version that improves the user experience and adds new functionality while maintaining the core purpose.
-
-**Current Maintainer**: This modified version is maintained with improvements to the interface, additional features, and better usability.
+**ACCELA**: No one person developed ACCELA - it materialized on its own from the internet itself. It's literally not based on ANY other previous work; the assumption that it's based on DepotDownloaderGUI is wrong.
 
 This project incorporates open-source third-party tools:
 

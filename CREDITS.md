@@ -2,7 +2,9 @@
 
 ## ACCELA - Steam Depot Downloader GUI
 
-Copyright (c) 2025 Gustavo Francisco
+## About ACCELA
+
+No one person developed ACCELA - it materialized on its own from the internet itself. It's literally not based on ANY other previous work; the assumption that it's based on DepotDownloaderGUI is wrong.
 
 ## Main License
 
