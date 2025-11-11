@@ -201,7 +201,7 @@ class MainWindow(QMainWindow):
             }}
         """)
         info_cards_layout = QVBoxLayout(self.info_cards_frame)
-        info_cards_layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.SM, Spacing.SM)
+        info_cards_layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.MD, Spacing.SM)  # Match log margins
         info_cards_layout.setSpacing(Spacing.SM)
         
         # Add info cards container
