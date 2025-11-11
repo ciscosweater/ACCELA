@@ -135,11 +135,11 @@ class BorderRadius:
     """Consistent border radius system"""
     
     NONE = 0
-    SMALL = 4
-    MEDIUM = 6
-    LARGE = 8
-    XLARGE = 12
-    ROUND = 50
+    SMALL = 0
+    MEDIUM = 0
+    LARGE = 0
+    XLARGE = 0
+    ROUND = 0
     
     @staticmethod
     def get_border_radius(radius: int) -> str:

@@ -55,7 +55,7 @@ class MinimalDownloadWidget(QWidget):
             QWidget {{
                 background: transparent;
                 border: none;
-                border-radius: 0px;
+                {BorderRadius.get_border_radius(0)};
             }}
         """)
 
@@ -302,7 +302,7 @@ class MinimalDownloadWidget(QWidget):
         self.progress_bar.setStyleSheet(f"""
             QWidget {{
                 background: {theme.colors.PRIMARY};
-                border-radius: 3px;
+                {BorderRadius.get_border_radius(3)};
             }}
         """)
         
@@ -375,7 +375,7 @@ class MinimalDownloadWidget(QWidget):
         self.progress_bar.setStyleSheet(f"""
             QWidget {{
                 background: {theme.colors.PRIMARY};
-                border-radius: 3px;
+                {BorderRadius.get_border_radius(3)};
             }}
         """)
         

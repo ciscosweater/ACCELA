@@ -216,7 +216,7 @@ class CustomTitleBar(QFrame):
             button.setStyleSheet(f"""
                 QPushButton {{
                     border: 1px solid {theme.colors.BORDER};
-                    border-radius: 4px;
+                    {BorderRadius.get_border_radius(BorderRadius.SMALL)};
                     background: {theme.colors.SURFACE};
                 }}
                 QPushButton:hover {{

@@ -389,7 +389,7 @@ class MainWindow(QMainWindow):
                 font-size: 10pt;
                 font-weight: 500;
                 border: 1px solid {theme.colors.SURFACE_LIGHT};
-                border-radius: 0px;
+                {BorderRadius.get_border_radius(0)};
             }}
         """)
         # Enable word wrapping and horizontal scrolling for long file paths

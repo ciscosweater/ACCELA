@@ -142,7 +142,7 @@ class GameDeletionDialog(QDialog):
                 background: {theme.colors.BACKGROUND};
                 border: 2px solid {theme.colors.PRIMARY};
                 color: {theme.colors.TEXT_PRIMARY};
-                border-radius: 8px;
+                {BorderRadius.get_border_radius(BorderRadius.LARGE)};
             }}
             QLabel {{
                 color: {theme.colors.TEXT_PRIMARY};
@@ -180,7 +180,7 @@ class GameDeletionDialog(QDialog):
             QGroupBox {{
                 color: {theme.colors.TEXT_PRIMARY};
                 border: 1px solid {theme.colors.BORDER};
-                border-radius: 6px;
+                {BorderRadius.get_border_radius(BorderRadius.MEDIUM)};
                 margin-top: 8px;
                 padding-top: 12px;
                 font-weight: bold;
@@ -204,7 +204,7 @@ class GameDeletionDialog(QDialog):
                 background-color: {theme.colors.SURFACE};
                 color: {theme.colors.TEXT_PRIMARY};
                 border: 1px solid {theme.colors.BORDER};
-                border-radius: 4px;
+                {BorderRadius.get_border_radius(BorderRadius.SMALL)};
                 padding: 6px 12px;
                 font-weight: bold;
                 {Typography.get_font_style(Typography.CAPTION_SIZE)};
@@ -354,7 +354,7 @@ class GameDeletionDialog(QDialog):
             }}
             QCheckBox {{
                 border: 2px solid {theme.colors.BORDER};
-                border-radius: 0px;
+                {BorderRadius.get_border_radius(0)};
                 background-color: {theme.colors.BACKGROUND};
                 width: 20px;
                 height: 20px;

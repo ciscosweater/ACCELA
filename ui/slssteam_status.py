@@ -20,7 +20,7 @@ class StatusIndicator(QLabel):
         super().__init__(parent)
         self.setFixedSize(16, 16)
         self.status = SlssteamStatus.ERROR
-        self.setStyleSheet("border-radius: {BorderRadius.LARGE}px;")
+        self.setStyleSheet(f"{BorderRadius.get_border_radius(BorderRadius.LARGE)}")
     
     def set_status(self, status: SlssteamStatus):
         """Update indicator color based on status"""
