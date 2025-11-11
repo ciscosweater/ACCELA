@@ -20,7 +20,7 @@ from core.game_manager import GameManager
 logger = logging.getLogger(__name__)
 
 class GameDeletionWorker(QThread):
-    """Worker thread for deleting games without blocking the UI."""
+    """Worker thread para deletar jogos sem bloquear a UI."""
     progress = pyqtSignal(int, str)  # progress, message
     game_deleted = pyqtSignal(str, bool, str)  # game_name, success, message
     finished = pyqtSignal()
@@ -33,14 +33,14 @@ class GameDeletionWorker(QThread):
         self._is_running = True
         self._current_game = None
         
-        # Initial validation
+        # Validação inicial
         if not games_to_delete:
             raise ValueError("No games provided for deletion")
         
         logger.info(f"Starting deletion worker for {len(games_to_delete)} games")
     
     def run(self):
-        """Execute game deletion in background with robust error handling."""
+        """Executa a deleção dos jogos em background com tratamento robusto de erros."""
         total_games = len(self.games_to_delete)
         successful_deletions = 0
         failed_deletions = 0
@@ -51,7 +51,7 @@ class GameDeletionWorker(QThread):
                     logger.info("Deletion worker stopped by user")
                     break
                 
-                # Validate game data before processing
+                # Validar dados do jogo antes de processar
                 if not game_info or not isinstance(game_info, dict):
                     error_msg = f"Invalid game data at index {i}"
                     logger.error(error_msg)
@@ -62,7 +62,7 @@ class GameDeletionWorker(QThread):
                 game_name = game_info.get('name', 'Unknown Game')
                 self._current_game = game_name
                 
-                # Validate essential fields
+                # Validar campos essenciais
                 if not game_info.get('appid'):
                     error_msg = f"Missing appid for game: {game_name}"
                     logger.error(error_msg)
@@ -71,13 +71,13 @@ class GameDeletionWorker(QThread):
                     continue
                 
                 try:
-                    # Update progress
+                    # Atualizar progresso
                     progress_percent = int((i / total_games) * 100)
                     self.progress.emit(progress_percent, f"Deleting {game_name}...")
                     
                     logger.info(f"Deleting game {i+1}/{total_games}: {game_name}")
                     
-                    # Delete game with implicit timeout
+                    # Deletar jogo com timeout implícito
                     success, message = GameManager.delete_game(game_info, self.delete_compatdata)
                     
                     if success:
@@ -89,7 +89,7 @@ class GameDeletionWorker(QThread):
                     
                     self.game_deleted.emit(game_name, success, message)
                     
-                    # Small pause to avoid system overload
+                    # Pequena pausa para não sobrecarregar o sistema
                     self.msleep(100)  # 100ms entre deleções
                     
                 except Exception as e:
@@ -99,10 +99,10 @@ class GameDeletionWorker(QThread):
                     failed_deletions += 1
                     continue
             
-            # Final progress
+            # Progresso final
             self.progress.emit(100, f"Completed! {successful_deletions} successful, {failed_deletions} failed")
             
-            # Final log
+            # Log final
             logger.info(f"Deletion process completed: {successful_deletions} successful, {failed_deletions} failed")
             
         except Exception as e:
@@ -113,17 +113,17 @@ class GameDeletionWorker(QThread):
             self.finished.emit()
     
     def stop(self):
-        """Stop worker execution safely."""
+        """Para a execução do worker de forma segura."""
         logger.info(f"Stopping deletion worker (current game: {self._current_game})")
         self._is_running = False
     
     def get_current_game(self) -> str:
-        """Return the name of the currently processed game."""
+        """Retorna o nome do jogo sendo processado atualmente."""
         return self._current_game or "None"
         return self._current_game or "None"
 
 class GameDeletionDialog(QDialog):
-    """Main dialog for ACCELA game deletion."""
+    """Dialog principal para deleção de jogos ACCELA."""
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -136,7 +136,7 @@ class GameDeletionDialog(QDialog):
         self.setMinimumSize(800, 500)
         self.resize(850, 600)
         
-        # Apply simplified modern theme to avoid conflicts
+        # Aplicar tema moderno simplificado para evitar conflitos
         self.setStyleSheet(f"""
             QDialog {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
@@ -303,38 +303,38 @@ class GameDeletionDialog(QDialog):
             "Select", "Game Name", "Size", "Location"
         ])
         
-        # Configure vertical headers with safety check
+        # Configurar headers verticais com verificação de segurança
         vertical_header = self.games_table.verticalHeader()
         if vertical_header is not None:
             vertical_header.setVisible(False)
             vertical_header.setDefaultSectionSize(40)
 
-        # Configure table
+        # Configurar tabela
         self.games_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.games_table.setAlternatingRowColors(True)
         self.games_table.setShowGrid(False)
         self.games_table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.games_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.games_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.games_table.setMinimumHeight(250)  # Adequate table height
+        self.games_table.setMinimumHeight(250)  # Altura adequada da tabela
         
-        # Configure columns correctly
+        # Configurar colunas corretamente
         header = self.games_table.horizontalHeader()
         if header:
             header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)  # Select
-            self.games_table.setColumnWidth(0, 60)  # Fixed width for checkbox (increased)
+            self.games_table.setColumnWidth(0, 60)  # Largura fixa para checkbox (aumentada)
             header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Game Name
             header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)  # Size
             header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)  # Location
             
-        # Configure vertical header
+            # Configurar header vertical
             vertical_header = self.games_table.verticalHeader()
             if vertical_header:
                 vertical_header.setVisible(False)
-                vertical_header.setDefaultSectionSize(40)  # Adequate height for rows
+                vertical_header.setDefaultSectionSize(40)  # Altura adequada para linhas
                 vertical_header.setMinimumSectionSize(40)
         
-        # Improved table style
+        # Estilo da tabela melhorado
         self.games_table.setStyleSheet(f"""
             QTableWidget {{
                 background-color: {theme.colors.BACKGROUND};
@@ -491,12 +491,12 @@ class GameDeletionDialog(QDialog):
         return frame
     
     def _create_action_buttons(self) -> QFrame:
-        """Create action buttons."""
+        """Cria os botões de ação."""
         frame = QFrame()
-        frame.setMaximumHeight(45)  # Adequate height for buttons
+        frame.setMaximumHeight(45)  # Altura adequada para botões
         layout = QHBoxLayout(frame)
-        layout.setContentsMargins(16, 6, 16, 6)  # Adequate margins
-        layout.setSpacing(12)  # Adequate spacing between buttons
+        layout.setContentsMargins(16, 6, 16, 6)  # Margens adequadas
+        layout.setSpacing(12)  # Spacing adequado entre botões
         
         # Refresh button
         self.refresh_btn = HoverButton("🔄 Refresh List")
@@ -591,9 +591,9 @@ class GameDeletionDialog(QDialog):
             size_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.games_table.setItem(row, 2, size_item)
             
-            # Location - show more useful information
+            # Location - mostrar informação mais útil
             library_path = game['library_path']
-            # Try to show a more meaningful path (drive + main folder)
+            # Tentar mostrar um caminho mais significativo (drive + pasta principal)
             if os.name == 'nt':  # Windows
                 # Ex: "C:\Steam" ou "D:\Games\Steam"
                 location_display = library_path
@@ -605,17 +605,17 @@ class GameDeletionDialog(QDialog):
                 else:
                     location_display = library_path
             
-            # Limit size for display
+            # Limitar tamanho para exibição
             if len(location_display) > 40:
                 location_display = "..." + location_display[-37:]
             
             location_item = QTableWidgetItem(location_display)
             location_item.setFlags(location_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            location_item.setToolTip(f"Full path: {library_path}")  # Tooltip with complete path
+            location_item.setToolTip(f"Full path: {library_path}")  # Tooltip com path completo
             location_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.games_table.setItem(row, 3, location_item)
         
-        # Connect row selection - remove itemSelectionChanged to avoid freezing
+        # Conectar seleção de linha - remover itemSelectionChanged para evitar travamento
         self.games_table.cellClicked.connect(self._on_cell_clicked)
     
     def _on_cell_clicked(self, row: int, column: int):
@@ -632,7 +632,7 @@ class GameDeletionDialog(QDialog):
             # Update details panel
             self._update_details_panel(self.games_list[row])
     
-    # Removed to avoid freezing - using only cellClicked
+    # Removido para evitar travamento - usando apenas cellClicked
     # def _on_table_selection_changed(self):
     #     """Handle table selection changes."""
     #     current_row = self.games_table.currentRow()
@@ -680,7 +680,7 @@ class GameDeletionDialog(QDialog):
         for row in range(self.games_table.rowCount()):
             checkbox_container = self.games_table.cellWidget(row, 0)
             if checkbox_container:
-                # Find checkbox inside container
+                # Encontrar o checkbox dentro do container
                 checkbox = checkbox_container.findChild(QCheckBox)
                 if checkbox and checkbox.isChecked():
                     selected_games.append(self.games_list[row])
@@ -690,7 +690,7 @@ class GameDeletionDialog(QDialog):
         self.delete_btn.setText(f"Delete Selected Games ({len(selected_games)})")
     
     def _select_all_games(self):
-        """Select all games."""
+        """Seleciona todos os jogos."""
         for row in range(self.games_table.rowCount()):
             checkbox_container = self.games_table.cellWidget(row, 0)
             if checkbox_container:
@@ -699,7 +699,7 @@ class GameDeletionDialog(QDialog):
                     checkbox.setChecked(True)
     
     def _select_none_games(self):
-        """Deselect all games."""
+        """Deseleciona todos os jogos."""
         for row in range(self.games_table.rowCount()):
             checkbox_container = self.games_table.cellWidget(row, 0)
             if checkbox_container:
@@ -708,17 +708,17 @@ class GameDeletionDialog(QDialog):
                     checkbox.setChecked(False)
     
     def _start_deletion(self):
-        """Start deletion process."""
+        """Inicia o processo de deleção."""
         if not self.selected_games:
             return
         
-         # Confirm deletion
+        # Confirmar deleção
         game_names = [game['name'] for game in self.selected_games]
-         # Removed size calculation to avoid freezing
+        # Removido cálculo de tamanho para evitar travamento
         # total_size = sum(game['size_bytes'] for game in self.selected_games)
         delete_compatdata = self.delete_compatdata_checkbox.isChecked()
         
-         # Calculate compatdata size if applicable (removed to avoid freezing)
+        # Calcular tamanho do compatdata se aplicável (removido para evitar travamento)
         # compatdata_size = 0
         compatdata_games = []
         if delete_compatdata:
@@ -803,7 +803,7 @@ class GameDeletionDialog(QDialog):
             "Game deletion process has completed. Check the logs for details."
         )
         
-        # Reload list and reset UI
+        # Recarregar lista e resetar UI
         self._load_games()
         self.games_table.setEnabled(True)
         self.refresh_btn.setEnabled(True)
@@ -811,20 +811,20 @@ class GameDeletionDialog(QDialog):
         self.progress_bar.setValue(0)
     
     def _cancel_deletion(self):
-        """Cancel deletion process."""
+        """Cancela o processo de deleção."""
         if self.deletion_worker:
             self.deletion_worker.stop()
             self.deletion_worker.wait()
             self.deletion_worker = None
         
-        # Reset UI
+        # Resetar UI
         self.games_table.setEnabled(True)
         self.refresh_btn.setEnabled(True)
         self.progress_frame.setVisible(False)
         self.progress_bar.setValue(0)
     
     def closeEvent(self, a0):
-        """Handle dialog close event."""
+        """Trata o evento de fechar o dialog."""
         if self.deletion_worker:
             self._cancel_deletion()
         super().closeEvent(a0)

@@ -2,7 +2,7 @@ import logging
 import re
 
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QColor, QIcon, QMouseEvent, QMovie, QPainter, QPixmap
+from PyQt6.QtGui import QColor, QIcon, QMouseEvent, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QFrame,
@@ -32,14 +32,13 @@ class CustomTitleBar(QFrame):
         self.parent = parent
         self.drag_pos = None
         self.setFixedHeight(35)  # Aumentado para evitar corte e melhor proporção
-        from .theme import get_current_theme
-
-        current_theme = get_current_theme()
+        from .theme import theme
 
         self.setStyleSheet(f"""
             QFrame {{
-                background: {current_theme.colors.BACKGROUND};
-                border-top: 1px solid {current_theme.colors.BORDER};
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {theme.colors.BACKGROUND}, stop:1 {theme.colors.SURFACE});
+                border-top: 1px solid {theme.colors.BORDER};
             }}
         """)
         logger.debug("CustomTitleBar initialized.")
@@ -53,19 +52,21 @@ class CustomTitleBar(QFrame):
         left_layout = QHBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.version_label = QLabel("v1.1.0 - ciskao")
-        self.version_label.setStyleSheet(f"""
+        self.navi_label = QLabel("v1.1.0 - ciskao")
+        from .theme import theme
+        
+        self.navi_label.setStyleSheet(f"""
             QLabel {{
-                color: {current_theme.colors.TEXT_SECONDARY};
+                color: {theme.colors.TEXT_ACCENT};
                 font-size: 12px;
-                font-weight: 600;
-                background: transparent;
+                font-weight: bold;
                 border: none;
+                background: transparent;
                 padding: 0px;
                 margin: 0px;
             }}
         """)
-        left_layout.addWidget(self.version_label)
+        left_layout.addWidget(self.navi_label)
 
         right_widget = QWidget()
         right_layout = QHBoxLayout(right_widget)
@@ -99,12 +100,6 @@ class CustomTitleBar(QFrame):
             GEAR_SVG, getattr(parent, "open_settings", lambda: None), "Open Settings"
         )
         right_layout.addWidget(self.settings_button)
-
-        # Add theme settings button
-        self.theme_button = self._create_text_button(
-            "🎨", getattr(parent, "open_theme_settings", lambda: None), "Theme Settings"
-        )
-        right_layout.addWidget(self.theme_button)
 
         self.close_button = self._create_svg_button(
             POWER_SVG, getattr(parent, "close", lambda: None), "Close Application"
@@ -142,37 +137,45 @@ class CustomTitleBar(QFrame):
 
         self.setLayout(layout)
 
-    def mousePressEvent(self, event: QMouseEvent):
+    def mousePressEvent(self, a0):
         """
-        Records initial mouse position for window dragging.
+        Captures initial mouse press event to start dragging window.
         """
-        if event and hasattr(event, "button") and event.button() == Qt.MouseButton.LeftButton:
+        if a0 and hasattr(a0, "button") and a0.button() == Qt.MouseButton.LeftButton:
             if hasattr(self.parent, "frameGeometry"):
                 try:
                     self.drag_pos = (
-                        event.globalPosition().toPoint()
+                        a0.globalPosition().toPoint()
                         - self.parent.frameGeometry().topLeft()
                     )
                 except:
                     pass
-            event.accept()
+            a0.accept()
 
-    def mouseMoveEvent(self, event: QMouseEvent):
+    def mouseMoveEvent(self, a0):
         """
         Moves window as mouse is dragged.
         """
         if (
-            event
-            and hasattr(event, "buttons")
-            and event.buttons() == Qt.MouseButton.LeftButton
+            a0
+            and hasattr(a0, "buttons")
+            and a0.buttons() == Qt.MouseButton.LeftButton
             and self.drag_pos
         ):
             if hasattr(self.parent, "move"):
                 try:
-                    self.parent.move(event.globalPosition().toPoint() - self.drag_pos)
+                    self.parent.move(a0.globalPosition().toPoint() - self.drag_pos)
                 except:
                     pass
-            event.accept()
+            a0.accept()
+
+    def mouseReleaseEvent(self, a0):
+        """
+        Resets drag position when mouse button is released.
+        """
+        self.drag_pos = None
+        if a0:
+            a0.accept()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         """
@@ -204,10 +207,9 @@ class CustomTitleBar(QFrame):
                 QPainter.CompositionMode.CompositionMode_SourceIn
             )
 
-            from .theme import get_current_theme
+            from .theme import theme
 
-            current_theme = get_current_theme()
-            painter.fillRect(pixmap.rect(), QColor(current_theme.colors.TEXT_ACCENT))
+            painter.fillRect(pixmap.rect(), QColor(theme.colors.TEXT_ACCENT))
 
             painter.end()
 
@@ -216,44 +218,29 @@ class CustomTitleBar(QFrame):
             button.setIcon(icon)
             button.setIconSize(icon_size)
             button.setFixedSize(22, 22)  # Botões maiores para title bar aumentada
+            from .theme import theme
+
             button.setStyleSheet(f"""
                 QPushButton {{
-                    border: 1px solid {current_theme.colors.BORDER};
+                    border: 1px solid {theme.colors.BORDER};
                     border-radius: 4px;
-                    background: {current_theme.colors.SURFACE};
+                    background: {theme.colors.SURFACE};
                 }}
                 QPushButton:hover {{
-                    background: {current_theme.colors.PRIMARY};
-                    border: 1px solid {current_theme.colors.PRIMARY};
+                    background: {theme.colors.PRIMARY};
+                    border: 1px solid {theme.colors.PRIMARY};
                 }}
                 QPushButton:pressed {{
-                    background: {current_theme.colors.PRIMARY_DARK};
-                    border: 1px solid {current_theme.colors.PRIMARY_DARK};
+                    background: {theme.colors.PRIMARY_DARK};
+                    border: 1px solid {theme.colors.PRIMARY_DARK};
                 }}
             """)
             button.clicked.connect(on_click)
             return button
         except Exception as e:
             logger.error(f"Failed to create SVG button: {e}", exc_info=True)
-            from .theme import get_current_theme
-            current_theme = get_current_theme()
             fallback_button = QPushButton("X")
             fallback_button.setFixedSize(22, 22)
-            fallback_button.setStyleSheet(f"""
-                QPushButton {{
-                    border: 1px solid {current_theme.colors.BORDER};
-                    border-radius: 4px;
-                    background: {current_theme.colors.SURFACE};
-                }}
-                QPushButton:hover {{
-                    background: {current_theme.colors.PRIMARY};
-                    border: 1px solid {current_theme.colors.PRIMARY};
-                }}
-                QPushButton:pressed {{
-                    background: {current_theme.colors.PRIMARY_DARK};
-                    border: 1px solid {current_theme.colors.PRIMARY_DARK};
-                }}
-            """)
             fallback_button.clicked.connect(on_click)
             return fallback_button
 
@@ -265,51 +252,32 @@ class CustomTitleBar(QFrame):
             button = QPushButton(text)
             button.setToolTip(tooltip)
             button.setFixedSize(22, 22)  # Botões maiores para title bar aumentada
-            from .theme import get_current_theme
-
-            current_theme = get_current_theme()
+            from .theme import theme
 
             button.setStyleSheet(f"""
                 QPushButton {{
-                    border: 1px solid {current_theme.colors.BORDER};
+                    border: 1px solid {theme.colors.BORDER};
                     border-radius: 4px;
-                    color: {current_theme.colors.TEXT_ACCENT};
+                    color: {theme.colors.TEXT_ACCENT};
                     font-size: 11px;
                     font-weight: bold;
-                    background: {current_theme.colors.SURFACE};
+                    background: {theme.colors.SURFACE};
                 }}
                 QPushButton:hover {{
-                    background: {current_theme.colors.PRIMARY};
-                    color: {current_theme.colors.TEXT_ON_PRIMARY};
-                    border: 1px solid {current_theme.colors.PRIMARY};
+                    background: {theme.colors.PRIMARY};
+                    color: {theme.colors.TEXT_ON_PRIMARY};
+                    border: 1px solid {theme.colors.PRIMARY};
                 }}
                 QPushButton:pressed {{
-                    background: {current_theme.colors.PRIMARY_DARK};
-                    border: 1px solid {current_theme.colors.PRIMARY_DARK};
+                    background: {theme.colors.PRIMARY_DARK};
+                    border: 1px solid {theme.colors.PRIMARY_DARK};
                 }}
             """)
             button.clicked.connect(on_click)
             return button
         except Exception as e:
             logger.error(f"Failed to create text button: {e}", exc_info=True)
-            from .theme import get_current_theme
-            current_theme = get_current_theme()
             fallback_button = QPushButton("?")
             fallback_button.setFixedSize(22, 22)
-            fallback_button.setStyleSheet(f"""
-                QPushButton {{
-                    border: 1px solid {current_theme.colors.BORDER};
-                    border-radius: 4px;
-                    background: {current_theme.colors.SURFACE};
-                }}
-                QPushButton:hover {{
-                    background: {current_theme.colors.PRIMARY};
-                    border: 1px solid {current_theme.colors.PRIMARY};
-                }}
-                QPushButton:pressed {{
-                    background: {current_theme.colors.PRIMARY_DARK};
-                    border: 1px solid {current_theme.colors.PRIMARY_DARK};
-                }}
-            """)
             fallback_button.clicked.connect(on_click)
             return fallback_button

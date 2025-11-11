@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QStatusBar, QDialog, QHBoxLayout, QSizePolicy, QApplication
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject, QTimer
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QMovie, QPixmap, QCloseEvent
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QMovie, QPixmap
 
 from ui.custom_title_bar import CustomTitleBar
 from ui.enhanced_dialogs import SettingsDialog, DepotSelectionDialog, SteamLibraryDialog, DlcSelectionDialog
@@ -111,14 +111,6 @@ class MainWindow(QMainWindow):
         self._setup_ui()
         self._setup_download_connections()
         
-        # Initialize theme manager reference after UI setup
-        try:
-            from ui.theme_manager import theme_manager
-            self.theme_manager = theme_manager
-        except ImportError:
-            logger.warning("Theme manager not available")
-            self.theme_manager = None
-        
         # If zip file was provided as argument, start processing it immediately
         if zip_file:
             self._start_zip_processing(zip_file)
@@ -126,16 +118,23 @@ class MainWindow(QMainWindow):
     def _setup_ui(self):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
-        self.main_layout = QVBoxLayout(self.central_widget)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
-        self.main_layout.setSpacing(0)
+        self.layout = QVBoxLayout(self.central_widget)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
 
         # Add title bar at the top of the window
         self.title_bar = CustomTitleBar(self)
-        self.main_layout.addWidget(self.title_bar)
+        self.layout.addWidget(self.title_bar)
 
         main_content_frame = QFrame()
-        self.main_layout.addWidget(main_content_frame)
+        main_content_frame.setStyleSheet("""
+            QFrame {
+                background: #000000;
+                border: none;
+                border-radius: 8px;
+            }
+        """)
+        self.layout.addWidget(main_content_frame)
         
         main_layout = QVBoxLayout(main_content_frame)
         main_layout.setContentsMargins(16,8,16,4)  # Reduce bottom margin to eliminate extra space
@@ -160,6 +159,15 @@ class MainWindow(QMainWindow):
 
         self.drop_text_label = ScaledFontLabel("Drag and Drop Zip here")
         self.drop_text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        from .theme import theme
+        self.drop_text_label.setStyleSheet(f"""
+            QLabel {{
+                color: {theme.colors.TEXT_SECONDARY};
+                background-color: transparent;
+                font-size: 14px;
+                font-weight: 500;
+            }}
+        """)
         drop_zone_layout.addWidget(self.drop_text_label, 1)
 
         
@@ -181,6 +189,12 @@ class MainWindow(QMainWindow):
         self.game_header_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.game_header_label.setScaledContents(False)  # Let scaled() control the aspect ratio
         self.game_header_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.game_header_label.setStyleSheet("""
+            QLabel {
+                border: 1px solid #C06C84;
+                background: #1E1E1E;
+            }
+        """)
         game_image_layout.addWidget(self.game_header_label)
         
         # Game info next to image
@@ -188,9 +202,24 @@ class MainWindow(QMainWindow):
         game_info_layout.setSpacing(2)  # Reduced spacing
         
         self.game_title_label = QLabel("Game Title")
+        self.game_title_label.setStyleSheet("""
+            QLabel {
+                font-size: 12px;  # Reduced font size
+                font-weight: bold;
+                color: #C06C84;
+                border: none;
+            }
+        """)
         game_info_layout.addWidget(self.game_title_label)
         
         self.game_status_label = QLabel("Downloading...")
+        self.game_status_label.setStyleSheet("""
+            QLabel {
+                font-size: 10px;  # Reduced font size
+                color: #808080;
+                border: none;
+            }
+        """)
         game_info_layout.addWidget(self.game_status_label)
         
         game_info_layout.addStretch()
@@ -206,11 +235,33 @@ class MainWindow(QMainWindow):
         self.minimal_download_widget.setVisible(False)
         main_layout.addWidget(self.minimal_download_widget, 0, Qt.AlignmentFlag.AlignCenter)
         
+        # Enhanced progress bar (legado - completamente removido)
+        # self.progress_bar = EnhancedProgressBar()
+        # self.progress_bar.setVisible(False)
+        
+        # Download controls (legado - completamente removido)
+        # self.download_controls = DownloadControls()
+        # self.download_controls.setVisible(False)
+        # self.download_controls.setMaximumWidth(350)
+        # self.download_controls.setMaximumHeight(80)
+        # self.download_controls.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
         # Initialize notification system
         self.notification_manager = NotificationManager(self)
 
+
+
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
+        self.log_output.setStyleSheet("""
+            QTextEdit {
+                background-color: #1E1E1E;
+                color: #C06C84;
+                font-family: 'Courier New', monospace;
+                font-size: 10px;
+                border: 1px solid #C06C84;
+            }
+        """)
         # Enable word wrapping and horizontal scrolling for long file paths
         self.log_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         self.log_output.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -225,44 +276,35 @@ class MainWindow(QMainWindow):
             # Fallback if logging handler is not available
             pass
 
+
+
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.setSizeGripEnabled(True)
+        self.status_bar.setStyleSheet("QStatusBar { border: 0px; background: #000000; height: 8px; }")
         self.status_bar.setMaximumHeight(8)  # Minimum status bar just for size grip
 
         self.setAcceptDrops(True)
 
     def open_settings(self):
-        from ui.enhanced_dialogs import SettingsDialog
         dialog = SettingsDialog(self)
         dialog.exec()
     
     def open_font_settings(self):
-        from ui.font_settings_dialog import FontSettingsDialog
         dialog = FontSettingsDialog(self)
         dialog.exec()
-    
-    def open_theme_settings(self):
-        try:
-            from ui.theme_settings_dialog import ThemeSettingsDialog
-            dialog = ThemeSettingsDialog(self)
-            dialog.exec()
-        except ImportError:
-            from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.information(self, "Theme Settings", "Theme settings dialog not available yet.")
 
     def dragEnterEvent(self, event: QDragEnterEvent):
-        if event.mimeData() and event.mimeData().hasUrls() and len(event.mimeData().urls()) == 1:
+        if event.mimeData().hasUrls() and len(event.mimeData().urls()) == 1:
             url = event.mimeData().urls()[0]
             if url.isLocalFile() and url.toLocalFile().lower().endswith('.zip'):
                 event.acceptProposedAction()
 
     def dropEvent(self, event: QDropEvent):
-        if event.mimeData() and event.mimeData().hasUrls():
-            url = event.mimeData().urls()[0]
-            zip_path = url.toLocalFile()
-            self.log_output.clear()
-            self._start_zip_processing(zip_path)
+        url = event.mimeData().urls()[0]
+        zip_path = url.toLocalFile()
+        self.log_output.clear()
+        self._start_zip_processing(zip_path)
 
     def _setup_download_connections(self):
         """Configure DownloadManager and UI controls connections"""
@@ -367,8 +409,7 @@ class MainWindow(QMainWindow):
             self._handle_steam_schema_generation()
             logger.info("Steam schema generation handled")
             
-            game_name = self.game_data.get('game_name', 'Game') if self.game_data else 'Game'
-            self.notification_manager.show_notification(f"Successfully downloaded {game_name}!", "success")
+            self.notification_manager.show_notification(f"Successfully downloaded {self.game_data.get('game_name', 'Game')}!", "success")
             
             if self.slssteam_mode_was_active:
                 logger.info("Prompting for Steam restart...")
@@ -432,9 +473,6 @@ class MainWindow(QMainWindow):
             self._reset_ui_state()
 
     def _show_depot_selection_dialog(self):
-        if not self.game_data:
-            logger.error("No game data available for depot selection")
-            return
         self.depot_dialog = DepotSelectionDialog(self.game_data['appid'], self.game_data['depots'], self)
         if self.depot_dialog.exec():
             selected_depots = self.depot_dialog.get_selected_depots()
@@ -453,7 +491,7 @@ class MainWindow(QMainWindow):
             logger.info(f"SLSsteam mode: {slssteam_mode}")
 
             if slssteam_mode:
-                if self.game_data and self.game_data.get('dlcs'):
+                if self.game_data.get('dlcs'):
                     dlc_dialog = DlcSelectionDialog(self.game_data['dlcs'], self)
                     if dlc_dialog.exec():
                         self.game_data['selected_dlcs'] = dlc_dialog.get_selected_dlcs()
@@ -492,6 +530,7 @@ class MainWindow(QMainWindow):
         # Show game image display (integrado no widget minimalista)
         if self.game_data:
             self.game_title_label.setText(self.game_data.get('game_name', 'Unknown Game'))
+            # self.game_image_container.setVisible(True)  # Escondido - integrado no widget
             # Load game header image asynchronously
             self._load_game_image()
         
@@ -523,14 +562,11 @@ class MainWindow(QMainWindow):
         # O cancel já está conectado ao _confirm_cancel_download na linha 319
         
         # Iniciar download usando NOVO DownloadManager
-        if self.game_data:
-            session_id = self.download_manager.start_download(
-                self.game_data, 
-                selected_depots, 
-                dest_path
-            )
-        else:
-            return
+        session_id = self.download_manager.start_download(
+            self.game_data, 
+            selected_depots, 
+            dest_path
+        )
         
         if session_id:
             self.log_output.append(f"🚀 Download iniciado (Session: {session_id[:8]}...)")
@@ -558,7 +594,7 @@ class MainWindow(QMainWindow):
         
         # Strategy 3: Try to get from image cache manager
         if not game_image and self.game_data:
-            app_id = self.game_data.get('appid') if self.game_data else None
+            app_id = self.game_data.get('appid')
             if app_id:
                 url = f"https://cdn.akamai.steamstatic.com/steam/apps/{app_id}/header.jpg"
                 cached_image = self.image_cache_manager.get_cached_image(str(app_id), url)
@@ -580,23 +616,14 @@ class MainWindow(QMainWindow):
         
         # Create a 120x56 pixmap (same size as game_image_label)
         pixmap = QPixmap(120, 56)
-        # Use theme colors if available, fallback to hardcoded colors
-        if self.theme_manager and hasattr(self.theme_manager, 'get_color'):
-            bg_color = QColor(self.theme_manager.get_color('card_background'))
-            border_color = QColor(self.theme_manager.get_color('border'))
-            fill_color = QColor(self.theme_manager.get_color('button_background'))
-        else:
-            bg_color = QColor('#2A2A2A')
-            border_color = QColor('#666666')
-            fill_color = QColor('#444444')
-        pixmap.fill(bg_color)
+        pixmap.fill(QColor('#2A2A2A'))  # Dark background
         
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # Draw game controller icon
-        painter.setPen(QPen(border_color, 2))
-        painter.setBrush(fill_color)
+        painter.setPen(QPen(QColor('#666666'), 2))
+        painter.setBrush(QColor('#444444'))
         
         # Simple controller shape
         painter.drawRoundedRect(35, 18, 50, 20, 8, 8)
@@ -623,8 +650,11 @@ class MainWindow(QMainWindow):
                 game_name = self.game_data.get('game_name', 'Unknown Game')
                 self.game_title_label.setText(game_name)
                 
+                # Show the game image container (agora integrado no widget minimalista)
+                # self.game_image_container.setVisible(True)
+                
                 # Fetch header image
-                app_id = self.game_data.get('appid') if self.game_data else None
+                app_id = self.game_data.get('appid')
                 if app_id:
                     self._fetch_game_header_image(app_id)
         except Exception as e:
@@ -635,25 +665,19 @@ class MainWindow(QMainWindow):
     def _create_acf_file(self):
         self.log_output.append("Generating Steam .acf manifest file...")
         
-        if not self.game_data:
-            return
-            
         safe_game_name_fallback = re.sub(r'[^\w\s-]', '', self.game_data.get('game_name', '')).strip().replace(' ', '_')
         install_folder_name = self.game_data.get('installdir', safe_game_name_fallback)
         if not install_folder_name:
             install_folder_name = f"App_{self.game_data['appid']}"
             
-        if self.current_dest_path and self.game_data:
-            acf_path = os.path.join(self.current_dest_path, 'steamapps', f"appmanifest_{self.game_data.get('appid', '')}.acf")
-        else:
-            return
+        acf_path = os.path.join(self.current_dest_path, 'steamapps', f"appmanifest_{self.game_data['appid']}.acf")
 
         acf_content = f'''
 "AppState"
 {{
-    "appid"         "{self.game_data.get('appid', '')}"
+    "appid"         "{self.game_data['appid']}"
     "Universe"       "1"
-    "name"          "{self.game_data.get('game_name', '')}"
+    "name"          "{self.game_data['game_name']}"
     "StateFlags"    "4"
     "installdir"    "{install_folder_name}"
     "LastUpdated"   "0"
@@ -864,23 +888,14 @@ class MainWindow(QMainWindow):
         
         # Create a 184x69 pixmap (Steam header size)
         pixmap = QPixmap(184, 69)
-        # Use theme colors if available, fallback to hardcoded colors
-        if self.theme_manager and hasattr(self.theme_manager, 'get_color'):
-            bg_color = QColor(self.theme_manager.get_color('card_background'))
-            border_color = QColor(self.theme_manager.get_color('border'))
-            fill_color = QColor(self.theme_manager.get_color('button_background'))
-        else:
-            bg_color = QColor('#2A2A2A')
-            border_color = QColor('#666666')
-            fill_color = QColor('#444444')
-        pixmap.fill(bg_color)
+        pixmap.fill(QColor('#2A2A2A'))  # Dark background
         
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # Draw game controller icon
-        painter.setPen(QPen(border_color, 2))
-        painter.setBrush(fill_color)
+        painter.setPen(QPen(QColor('#666666'), 2))
+        painter.setBrush(QColor('#444444'))
         
         # Simple controller shape centered
         controller_x = 92 - 30  # Center horizontally
@@ -940,7 +955,7 @@ class MainWindow(QMainWindow):
             from core.steam_schema_integration import SteamSchemaIntegration
             schema_integration = SteamSchemaIntegration()
             
-            app_id = self.game_data.get('appid') if self.game_data else None
+            app_id = self.game_data.get('appid')
             if not app_id:
                 logger.warning("App ID not found for Steam Schema generation")
                 return
@@ -1018,7 +1033,7 @@ class MainWindow(QMainWindow):
             logger.error(f"Error opening Game Manager: {e}")
             QMessageBox.critical(self, "Error", f"Failed to open Game Manager: {e}")
     
-    def closeEvent(self, event: QCloseEvent):
+    def closeEvent(self, event):
         self._stop_speed_monitor()
         
         # Clean up download manager and its threads

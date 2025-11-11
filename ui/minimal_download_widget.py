@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 
 class MinimalDownloadWidget(QWidget):
     """
-    Minimalist and elegant widget that combines:
-    - Download status
-    - Integrated progress bar
-    - Download speed
-    - Controls (pause/resume/cancel)
+    Widget minimalista e elegante que combina:
+    - Status do download
+    - Barra de progresso integrada
+    - Velocidade de download
+    - Controles (pause/resume/cancel)
     """
 
     # Signals
@@ -35,10 +35,10 @@ class MinimalDownloadWidget(QWidget):
         self._set_idle_state()
 
     def _setup_ui(self):
-        """Configure minimalist interface with full-width layout"""
+        """Configure minimalist interface with optimized layout"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(0, 8, 0, 8)
+        layout.setSpacing(6)
 
         # Container principal sem fundo
         self.setStyleSheet(f"""
@@ -49,20 +49,14 @@ class MinimalDownloadWidget(QWidget):
             }}
         """)
 
-        # Main horizontal layout for full width usage
-        main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(16)
+        # Linha 1: Imagem + Nome do jogo
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(16, 0, 16, 0)
+        header_layout.setSpacing(12)
 
-        # Left side: Game image and name
-        left_widget = QWidget()
-        left_layout = QHBoxLayout(left_widget)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(12)
-
-        # Container for game image - Steam header ratio (920x430 ≈ 2.14:1)
+        # Container para imagem do jogo - proporção Steam header (920x430 ≈ 2.14:1)
         self.game_image_label = QLabel()
-        self.game_image_label.setFixedSize(120, 56)  # Reduced Steam header ratio
+        self.game_image_label.setFixedSize(120, 56)  # Proporção Steam header reduzida
         self.game_image_label.setStyleSheet(f"""
             QLabel {{
                 background: transparent;
@@ -72,7 +66,7 @@ class MinimalDownloadWidget(QWidget):
         """)
         self.game_image_label.hide()
 
-        # Game name
+        # Nome do jogo
         self.game_name_label = QLabel("Game Name")
         self.game_name_label.setStyleSheet(f"""
             QLabel {{
@@ -84,16 +78,23 @@ class MinimalDownloadWidget(QWidget):
         """)
         self.game_name_label.hide()
 
-        left_layout.addWidget(self.game_image_label)
-        left_layout.addWidget(self.game_name_label)
+        # Status label
+        self.status_label = QLabel("Ready to download")
+        self.status_label.setStyleSheet(f"""
+            QLabel {{
+                color: {theme.colors.TEXT_SECONDARY};
+                font-size: 12px;
+                font-weight: 500;
+                background: transparent;
+            }}
+        """)
+        self.status_label.hide()
 
-        # Center: Progress bar (spans available width)
-        center_widget = QWidget()
-        center_layout = QVBoxLayout(center_widget)
-        center_layout.setContentsMargins(0, 0, 0, 0)
-        center_layout.setSpacing(4)
+        header_layout.addWidget(self.game_image_label)
+        header_layout.addWidget(self.game_name_label)
+        header_layout.addStretch()
 
-        # Progress bar container
+        # Linha 2: Barra de progresso
         self.progress_container = QWidget()
         self.progress_container.setFixedHeight(6)
         self.progress_container.setStyleSheet(f"""
@@ -117,15 +118,14 @@ class MinimalDownloadWidget(QWidget):
         self.progress_animation.setDuration(300)
         self.progress_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-        center_layout.addWidget(self.progress_container)
+        # Linha 3: Status detalhado + velocidade + controles
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setContentsMargins(16, 4, 16, 0)
+        bottom_layout.setSpacing(12)
 
-        # Right side: Speed and controls
-        right_widget = QWidget()
-        right_layout = QHBoxLayout(right_widget)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(8)
 
-        # Speed label
+
+        # Velocidade label
         self.speed_label = QLabel("")
         self.speed_label.setStyleSheet(f"""
             QLabel {{
@@ -147,23 +147,54 @@ class MinimalDownloadWidget(QWidget):
         self.resume_btn.hide()
         self.cancel_btn.hide()
 
-        right_layout.addWidget(self.speed_label)
-        right_layout.addWidget(self.pause_btn)
-        right_layout.addWidget(self.resume_btn)
-        right_layout.addWidget(self.cancel_btn)
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(self.speed_label)
+        bottom_layout.addWidget(self.pause_btn)
+        bottom_layout.addWidget(self.resume_btn)
+        bottom_layout.addWidget(self.cancel_btn)
 
-        # Add widgets to main layout with proper stretching
-        main_layout.addWidget(left_widget, 0)  # Fixed size for left
-        main_layout.addWidget(center_widget, 1)  # Expanding center
-        main_layout.addWidget(right_widget, 0)  # Fixed size for right
+        # Adicionar layouts ao container principal
+        layout.addLayout(header_layout)
+        layout.addWidget(self.progress_container)
+        layout.addLayout(bottom_layout)
 
-        # Add main layout to container
-        layout.addLayout(main_layout)
-
-        # Connect signals
+        # Conectar signals
         self.pause_btn.clicked.connect(self.pause_clicked.emit)
         self.resume_btn.clicked.connect(self.resume_clicked.emit)
         self.cancel_btn.clicked.connect(self.cancel_clicked.emit)
+
+    def _create_fallback_image(self):
+        """Create a fallback placeholder image when no game image is available"""
+        from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont, QPen
+        from PyQt6.QtCore import Qt, QSize
+        
+        # Create a 120x56 pixmap (same size as game_image_label)
+        pixmap = QPixmap(120, 56)
+        pixmap.fill(QColor('#2A2A2A'))  # Dark background
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Draw game controller icon
+        painter.setPen(QPen(QColor('#666666'), 2))
+        painter.setBrush(QColor('#444444'))
+        
+        # Simple controller shape
+        painter.drawRoundedRect(35, 18, 50, 20, 8, 8)
+        painter.drawRoundedRect(25, 22, 15, 12, 4, 4)
+        painter.drawRoundedRect(80, 22, 15, 12, 4, 4)
+        
+        # Draw dots for buttons
+        painter.setPen(QPen(QColor('#666666'), 1))
+        painter.setBrush(QColor('#555555'))
+        painter.drawEllipse(85, 25, 3, 3)
+        painter.drawEllipse(90, 25, 3, 3)
+        painter.drawEllipse(87, 28, 3, 3)
+        painter.drawEllipse(87, 22, 3, 3)
+        
+        painter.end()
+        
+        return pixmap
 
     def _create_control_button(self, text, button_type):
         """Create minimalist control button"""
@@ -171,7 +202,7 @@ class MinimalDownloadWidget(QWidget):
         btn.setFixedSize(80, 30)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        # Base style
+        # Estilo base
         base_style = f"""
             QPushButton {{
                 background: {theme.colors.SURFACE};
@@ -246,7 +277,7 @@ class MinimalDownloadWidget(QWidget):
             self.game_image_label.setPixmap(fallback_pixmap)
             self.game_image_label.show()
         
-        # Show game name if provided
+        # Mostrar nome do jogo se fornecido
         if game_name:
             self.game_name_label.setText(game_name)
             self.game_name_label.show()

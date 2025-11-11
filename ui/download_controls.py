@@ -284,8 +284,8 @@ class DownloadControls(QWidget):
         self.cancel_button.setEnabled(False)
 
     def update_status(self, message: str):
-        """Update status message"""
-        # Limit message size to prevent overflow
+        """Atualiza mensagem de status"""
+        # Limitar tamanho da mensagem para evitar overflow
         max_length = 60
         if len(message) > max_length:
             message = message[: max_length - 3] + "..."
@@ -299,18 +299,18 @@ class DownloadControls(QWidget):
         else:
             full_text = message
 
-        # If full text is still too long, truncate prefix as well
+        # Se o texto completo ainda for muito longo, truncar o prefix também
         if len(full_text) > 80:
             full_text = full_text[:77] + "..."
 
         self.status_label.setText(full_text)
 
-        # Update geometry so layout respects configured minimum size
+        # Atualizar geometria para que o layout respeite o tamanho mínimo configurado
         self.status_label.updateGeometry()
 
 
 class CompactDownloadControls(QWidget):
-    """Compact version of controls for smaller spaces"""
+    """Versão compacta dos controles para espaços menores"""
 
     pause_clicked = pyqtSignal()
     resume_clicked = pyqtSignal()
@@ -323,12 +323,12 @@ class CompactDownloadControls(QWidget):
         self._set_idle_state()
 
     def _setup_ui(self):
-        """Configure compact interface"""
+        """Configura interface compacta"""
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 5, 0, 5)
         layout.setSpacing(5)
 
-        # Smaller and more compact buttons
+        # Botões menores e mais compactos
         self.pause_button = QPushButton("⏸")
         self.pause_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.pause_button.clicked.connect(self.pause_clicked.emit)
@@ -378,7 +378,7 @@ class CompactDownloadControls(QWidget):
         layout.addStretch()
 
     def set_downloading_state(self):
-        """Configure downloading state"""
+        """Configura estado de downloading"""
         self.current_state = "downloading"
         self.pause_button.show()
         self.pause_button.setEnabled(True)
@@ -386,7 +386,7 @@ class CompactDownloadControls(QWidget):
         self.cancel_button.setEnabled(True)
 
     def set_paused_state(self):
-        """Configure paused state"""
+        """Configura estado de paused"""
         self.current_state = "paused"
         self.pause_button.hide()
         self.resume_button.show()
@@ -394,21 +394,21 @@ class CompactDownloadControls(QWidget):
         self.cancel_button.setEnabled(True)
 
     def set_completed_state(self):
-        """Configure completed state"""
+        """Configura estado de completed"""
         self.current_state = "completed"
         self.pause_button.hide()
         self.resume_button.hide()
         self.cancel_button.setEnabled(False)
 
     def set_cancelling_state(self):
-        """Configure cancelling state"""
+        """Configura estado de cancelling"""
         self.current_state = "cancelling"
         self.pause_button.setEnabled(False)
         self.resume_button.setEnabled(False)
         self.cancel_button.setEnabled(False)
 
     def _set_idle_state(self):
-        """Configure idle state"""
+        """Configura estado idle"""
         self.current_state = "idle"
         self.pause_button.hide()
         self.resume_button.hide()
