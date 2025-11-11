@@ -125,8 +125,8 @@ class SettingsDialog(ModernDialog):
     def _setup_ui(self):
         """Setup modern UI layout."""
         main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(Spacing.LG)
-        main_layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        main_layout.setSpacing(Spacing.MD)
+        main_layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
         
         # Title
         title = AnimatedLabel("Application Settings")
@@ -154,7 +154,7 @@ class SettingsDialog(ModernDialog):
         
         scroll_widget = QWidget()
         scroll_layout = QVBoxLayout(scroll_widget)
-        scroll_layout.setSpacing(Spacing.LG)
+        scroll_layout.setSpacing(Spacing.MD)
         
         # SLSsteam Integration Section
         sls_frame = ModernFrame()
@@ -206,7 +206,7 @@ class SettingsDialog(ModernDialog):
         
         # Add refresh button to detect usernames
         refresh_button = HoverButton("Refresh")
-        refresh_button.setFixedSize(30, 25)
+        refresh_button.setFixedSize(25, 20)
         refresh_button.setToolTip("Detect available SLScheevo usernames")
         refresh_button.clicked.connect(self._detect_slscheevo_usernames)
         username_layout.addWidget(refresh_button)
@@ -541,16 +541,16 @@ class DepotSelectionDialog(ModernDialog):
         super().__init__(parent)
         self.setWindowTitle("Select Depots to Download")
         self.depots = depots
-        self.setMinimumSize(500, 400)
-        self.setMaximumSize(800, 900)
-        self.resize(600, 700)
+        self.setMinimumSize(480, 400)
+        self.setMaximumSize(500, 900)
+        self.resize(480, 700)
         self._setup_ui(app_id)
         
     def _setup_ui(self, app_id):
         """Setup enhanced UI with search functionality."""
         main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(Spacing.MD)
-        main_layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        main_layout.setSpacing(Spacing.SM)
+        main_layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
         
         # Header with image
         self.header_label = QLabel("Loading header image...")
@@ -720,8 +720,8 @@ class DepotSelectionDialog(ModernDialog):
             pixmap.loadFromData(image_data)
             # Store original pixmap for sharing with main window
             self.original_pixmap = pixmap
-            # Scale while maintaining aspect ratio, fit within 460x215
-            scaled_pixmap = pixmap.scaled(460, 215, Qt.AspectRatioMode.KeepAspectRatio, 
+            # Scale while maintaining aspect ratio, fit within 440x215
+            scaled_pixmap = pixmap.scaled(440, 215, Qt.AspectRatioMode.KeepAspectRatio, 
                                         Qt.TransformationMode.SmoothTransformation)
             self.header_label.setPixmap(scaled_pixmap)
         else:
@@ -757,8 +757,8 @@ class SteamLibraryDialog(ModernDialog):
     def _setup_ui(self, library_paths):
         """Setup UI for library selection."""
         main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(Spacing.MD)
-        main_layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        main_layout.setSpacing(Spacing.SM)
+        main_layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
         
         # Title
         title = AnimatedLabel("Select Steam Library")
@@ -817,8 +817,8 @@ class DlcSelectionDialog(ModernDialog):
     def _setup_ui(self):
         """Setup UI for DLC selection."""
         main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(Spacing.MD)
-        main_layout.setContentsMargins(Spacing.LG, Spacing.LG, Spacing.LG, Spacing.LG)
+        main_layout.setSpacing(Spacing.SM)
+        main_layout.setContentsMargins(Spacing.MD, Spacing.MD, Spacing.MD, Spacing.MD)
         
         # Title
         title = AnimatedLabel("Select DLC")

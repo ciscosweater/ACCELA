@@ -69,8 +69,8 @@ class Typography:
     
     # Font sizes (versão compacta)
     H1_SIZE = 18       # Títulos principais
-    H2_SIZE = 12       # Cabeçalhos de seção
-    H3_SIZE = 10        # Subtítulos
+    H2_SIZE = 14       # Cabeçalhos de seção
+    H3_SIZE = 12        # Subtítulos
     BODY_SIZE = 10      # Texto comum
     CAPTION_SIZE = 10   # Legendas / texto pequeno
     

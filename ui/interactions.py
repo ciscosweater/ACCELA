@@ -26,27 +26,24 @@ class HoverButton(QPushButton):
         from ui.theme import theme
         self.setStyleSheet(f"""
             QPushButton {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                                          stop:0 {theme.colors.SURFACE}, stop:1 {theme.colors.BACKGROUND});
+                background: {theme.colors.SURFACE};
                 border: 1px solid {theme.colors.PRIMARY};
                 color: {theme.colors.PRIMARY};
-                font-weight: bold;
-                padding: 8px 16px;
-                text-transform: uppercase;
+                font-weight: 700;
+                padding: 4px 8px;
+                text-transform: none;
                 letter-spacing: 0.5px;
                 {theme.border_radius.get_border_radius(theme.border_radius.MEDIUM)};
                 {theme.shadows.get_shadow(theme.shadows.SUBTLE)};
             }}
             QPushButton:hover {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                                          stop:0 {theme.colors.PRIMARY}, stop:1 {theme.colors.PRIMARY_DARK});
+                background: {theme.colors.PRIMARY};
                 border: 1px solid {theme.colors.PRIMARY_LIGHT};
                 color: {theme.colors.TEXT_ON_PRIMARY};
                 {theme.shadows.get_shadow(theme.shadows.MEDIUM)};
             }}
             QPushButton:pressed {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-                                          stop:0 {theme.colors.PRIMARY_DARK}, stop:1 {theme.colors.PRIMARY_DARK});
+                background: {theme.colors.PRIMARY_DARK};
                 border: 1px solid {theme.colors.PRIMARY_DARK};
                 {theme.shadows.get_shadow(theme.shadows.NONE)};
             }}

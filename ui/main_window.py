@@ -168,7 +168,7 @@ class MainWindow(QMainWindow):
                 color: {theme.colors.TEXT_SECONDARY};
                 background-color: transparent;
                 font-family: {Typography.get_font_family()};
-                {Typography.get_font_style(Typography.H3_SIZE, Typography.WEIGHT_BOLD)};
+                {Typography.get_font_style(Typography.H2_SIZE, Typography.WEIGHT_BOLD)};
             }}
         """)
         drop_zone_layout.addWidget(self.drop_text_label, 1)
