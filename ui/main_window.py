@@ -28,6 +28,7 @@ from ui.theme import theme, Spacing
 from ui.game_deletion_dialog import GameDeletionDialog
 from ui.download_controls import DownloadControls
 from ui.minimal_download_widget import MinimalDownloadWidget
+from ui.info_cards import InfoCardsContainer
 from utils.image_cache import ImageCacheManager
 # from ui.responsive_design import ResponsiveMainWindow  # Disabled temporarily
 from utils.task_runner import TaskRunner
@@ -104,6 +105,10 @@ class MainWindow(QMainWindow):
         self.minimal_download_widget = MinimalDownloadWidget()
         self.minimal_download_widget.setVisible(False)
         
+        # Info cards container
+        self.info_cards = InfoCardsContainer()
+        self.info_cards.setVisible(True)
+        
         # Control to avoid multiple restart requests
         self._steam_restart_prompted = False
         
@@ -143,6 +148,13 @@ class MainWindow(QMainWindow):
         self.content_layout.setContentsMargins(Spacing.MD, Spacing.SM, Spacing.MD, Spacing.XS)  # Reduce bottom margin to eliminate extra space
         self.content_layout.setSpacing(Spacing.MD)  # Adequate spacing between elements
         
+        # Create horizontal layout for drop zone and info cards
+        drop_zone_with_cards = QWidget()
+        drop_zone_with_cards_layout = QHBoxLayout(drop_zone_with_cards)
+        drop_zone_with_cards_layout.setContentsMargins(0, 0, 0, 0)
+        drop_zone_with_cards_layout.setSpacing(Spacing.SM)
+        
+        # Drop zone container (left side)
         drop_zone_container = QWidget()
         drop_zone_layout = QVBoxLayout(drop_zone_container)
         drop_zone_layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.SM, Spacing.SM)  # Adequate margins for drop zone
@@ -173,9 +185,27 @@ class MainWindow(QMainWindow):
         """)
         drop_zone_layout.addWidget(self.drop_text_label, 1)
 
+        # Add drop zone to left side of horizontal layout
+        drop_zone_with_cards_layout.addWidget(drop_zone_container, 3)  # Takes 3/4 of horizontal space
         
+        # Add info cards to right side of horizontal layout
+        self.info_cards_frame = QFrame()
+        self.info_cards_frame.setStyleSheet(f"""
+            QFrame {{
+                background: transparent;
+                border: none;
+            }}
+        """)
+        info_cards_layout = QVBoxLayout(self.info_cards_frame)
+        info_cards_layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.SM, Spacing.SM)
+        info_cards_layout.setSpacing(Spacing.SM)
+        
+        # Add the info cards container
+        info_cards_layout.addWidget(self.info_cards)
+        
+        drop_zone_with_cards_layout.addWidget(self.info_cards_frame, 1)  # Takes 1/4 of horizontal space
 
-        self.content_layout.addWidget(drop_zone_container, 3)
+        self.content_layout.addWidget(drop_zone_with_cards, 3)
 
         # Game header image area (initially hidden)
         self.game_image_container = ModernFrame()
@@ -264,7 +294,8 @@ class MainWindow(QMainWindow):
                 background-color: {theme.colors.SURFACE};
                 color: {theme.colors.TEXT_PRIMARY};
                 font-family: {Typography.get_font_family()};
-                {Typography.get_font_style(Typography.BODY_SIZE, Typography.WEIGHT_NORMAL)};
+                font-size: 10pt;
+                font-weight: 500;
                 border: 1px solid {theme.colors.PRIMARY};
             }}
         """)
@@ -563,6 +594,9 @@ class MainWindow(QMainWindow):
         self.minimal_download_widget.set_downloading_state(game_name, game_image)
         self.minimal_download_widget.setVisible(True)
         
+        # Hide info cards during download to avoid layout conflicts
+        self.info_cards_frame.setVisible(False)
+        
         # Hide old container to avoid duplication
         self.game_image_container.hide()
         
@@ -744,6 +778,7 @@ class MainWindow(QMainWindow):
         self.game_image_container.setVisible(False)
         self.title_bar.select_file_button.setVisible(True)  # Show button again
         self.minimal_download_widget.setVisible(False)  # Esconder widget minimalista
+        self.info_cards_frame.setVisible(True)  # Show cards again
 
         # 🐛 FIX: Clean up all state variables to prevent conflicts on next ZIP
         self.game_data = None
