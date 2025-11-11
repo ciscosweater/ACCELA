@@ -169,9 +169,6 @@ class GameDeletionDialog(QDialog):
                 background-color: {theme.colors.PRIMARY};
                 color: {theme.colors.TEXT_ON_PRIMARY};
             }}
-            QTableWidget::item:hover {{
-                background-color: {theme.colors.SURFACE_LIGHT};
-            }}
             QHeaderView::section {{
                 background-color: {theme.colors.SURFACE};
                 color: {theme.colors.TEXT_PRIMARY};
@@ -212,6 +209,7 @@ class GameDeletionDialog(QDialog):
                 font-weight: bold;
                 {Typography.get_font_style(Typography.CAPTION_SIZE)};
             }}
+
             QPushButton:hover {{
                 background-color: {theme.colors.PRIMARY};
                 color: {theme.colors.TEXT_ON_PRIMARY};
@@ -353,12 +351,6 @@ class GameDeletionDialog(QDialog):
             QTableWidget::item:selected {{
                 background-color: {theme.colors.PRIMARY};
                 color: {theme.colors.TEXT_ON_PRIMARY};
-            }}
-            QTableWidget::item:hover {{
-                background-color: {theme.colors.SURFACE_LIGHT};
-            }}
-            QTableWidget::item:selected:hover {{
-                background-color: {theme.colors.PRIMARY_LIGHT};
             }}
             QCheckBox {{
                 border: 2px solid {theme.colors.BORDER};

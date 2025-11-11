@@ -68,11 +68,7 @@ class ModernFrame(QFrame):
                 {theme.border_radius.get_border_radius(theme.border_radius.LARGE)};
                 {theme.shadows.get_shadow(theme.shadows.SUBTLE)};
             }}
-            QFrame:hover {{
-                background: {theme.colors.SURFACE_LIGHT};
-                border: 1px solid {theme.colors.BORDER_LIGHT};
-                {theme.shadows.get_shadow(theme.shadows.MEDIUM)};
-            }}
+
         """)
 
 class AnimatedLabel(QLabel):
