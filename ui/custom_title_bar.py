@@ -52,7 +52,18 @@ class CustomTitleBar(QFrame):
         left_layout = QHBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.navi_label = QLabel("v1.1.0 - ciskao")
+        # Add SLSsteam status indicator (compact) - before version label
+        from .slssteam_status import SlssteamStatusWidget
+
+        self.slssteam_status = SlssteamStatusWidget(parent, compact=True)
+        # Only connect if parent has the method
+        if hasattr(parent, "_on_slssteam_setup_requested"):
+            self.slssteam_status.setup_requested.connect(
+                parent._on_slssteam_setup_requested
+            )
+        left_layout.addWidget(self.slssteam_status)
+
+        self.navi_label = QLabel("SLSsteam")
         from .theme import theme
         
         self.navi_label.setStyleSheet(f"""
@@ -72,17 +83,6 @@ class CustomTitleBar(QFrame):
         right_layout = QHBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(Spacing.SM)  # Better spacing between buttons
-
-        # Add SLSsteam status indicator (compact) - before ZIP button
-        from .slssteam_status import SlssteamStatusWidget
-
-        self.slssteam_status = SlssteamStatusWidget(parent, compact=True)
-        # Only connect if parent has the method
-        if hasattr(parent, "_on_slssteam_setup_requested"):
-            self.slssteam_status.setup_requested.connect(
-                parent._on_slssteam_setup_requested
-            )
-        right_layout.addWidget(self.slssteam_status)
 
         # Add select file button
         self.select_file_button = self._create_text_button(

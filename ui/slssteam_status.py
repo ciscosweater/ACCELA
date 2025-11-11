@@ -37,7 +37,7 @@ class StatusIndicator(QLabel):
         self.setStyleSheet(f"""
             QLabel {{
                 background-color: {color};
-                {BorderRadius.get_border_radius(BorderRadius.LARGE)};
+                border-radius: 8px;
                 border: 2px solid {theme.colors.SURFACE};
             }}
         """)
