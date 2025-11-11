@@ -2,7 +2,7 @@
 set -e  # Exit on error
 
 # Enhanced ACCELA Launcher with automatic setup and dependency checking
-cd "$(dirname "$(readlink -f "$0")"
+cd "$(dirname "$(readlink -f "$0")")"
 SCRIPT_DIR="$(pwd)"
 
 # Colors for output
@@ -40,20 +40,20 @@ setup_virtual_env() {
     else
         print_warning "Virtual environment not found"
         print_info "Creating virtual environment..."
-        
+
         # Check if python3 is available
         if ! command -v python3 &> /dev/null; then
             print_error "Python 3 is not installed. Please install Python 3.8+ first."
             exit 1
         fi
-        
+
         # Create virtual environment
         python3 -m venv venv
         print_status "Virtual environment created"
-        
+
         # Activate it
         source "$SCRIPT_DIR/venv/bin/activate"
-        
+
         # Check if requirements.txt exists
         if [ -f "$SCRIPT_DIR/requirements.txt" ]; then
             print_info "Installing dependencies..."
@@ -63,7 +63,7 @@ setup_virtual_env() {
             print_warning "requirements.txt not found, installing basic dependencies..."
             pip install PyQt6 requests psutil beautifulsoup4 "steam[client]"
         fi
-        
+
         print_status "Setup complete!"
     fi
 }
@@ -75,7 +75,7 @@ check_system_deps() {
         print_warning "aplay not found. Sound effects will be disabled."
         print_info "Install ALSA utilities: sudo apt install alsa-utils"
     fi
-    
+
     # Check for basic GUI dependencies
     if ! python3 -c "import PyQt6" 2>/dev/null; then
         print_error "PyQt6 not available. Please check your installation."
@@ -94,14 +94,14 @@ play_sound() {
 # Function to display startup banner
 show_banner() {
     echo -e "${BLUE}"
-    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "╔════════════════════════════════════════════════════════════╗"
     echo "║                    ACCELA - Steam Depot Downloader                ║"
     echo "║                      Enhanced Fork v2.0                        ║"
     echo "║                                                              ║"
     echo "║  🎮 Download Steam depots with advanced management          ║"
     echo "║  🚀 Enhanced UI and features                              ║"
     echo "║  🔧 Automatic setup and dependency checking                ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo "╚════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
@@ -109,11 +109,11 @@ show_banner() {
 main() {
     show_banner
     print_info "Initializing ACCELA..."
-    
+
     # Setup virtual environment and check dependencies
     setup_virtual_env
     check_system_deps
-    
+
     # Check if a zip file was provided as argument
     if [ $# -gt 0 ]; then
         ZIP_FILE="$1"
@@ -139,32 +139,3 @@ main() {
 
 # Run main function
 main "$@"
-
-# Function to play sound if file exists
-play_sound() {
-    local sound_file="$1"
-    if [ -f "$sound_file" ]; then
-        aplay "$sound_file" 2>/dev/null || echo "Warning: Could not play $sound_file"
-    fi
-}
-
-# Check if a zip file was provided as argument
-if [ $# -gt 0 ]; then
-    ZIP_FILE="$1"
-    # Check if the file exists and is a zip file
-    if [ -f "$ZIP_FILE" ] && [[ "$ZIP_FILE" == *.zip ]]; then
-        echo "Processing zip file: $ZIP_FILE"
-play_sound "$SCRIPT_DIR/audio/sfx/etw.wav"
-        python "$SCRIPT_DIR/main.py" "$ZIP_FILE"
-play_sound "$SCRIPT_DIR/audio/sfx/lal.wav"
-    else
-        echo "Error: File '$ZIP_FILE' does not exist or is not a zip file."
-        echo "Usage: ACCELA [zip_file]"
-        exit 1
-    fi
-else
-    # No zip file provided, run normally
-play_sound "$SCRIPT_DIR/audio/sfx/etw.wav"
-    python "$SCRIPT_DIR/main.py"
-play_sound "$SCRIPT_DIR/audio/sfx/lal.wav"
-fi
