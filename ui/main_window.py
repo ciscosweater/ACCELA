@@ -24,7 +24,7 @@ from ui.interactions import HoverButton, ModernFrame, AnimatedLabel
 from ui.shortcuts import KeyboardShortcuts
 from ui.notification_system import NotificationManager
 from ui.asset_optimizer import AssetManager
-from ui.theme import theme, Spacing
+from ui.theme import theme, Spacing, BorderRadius
 
 from ui.game_deletion_dialog import GameDeletionDialog
 from ui.download_controls import DownloadControls
@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setContentsMargins(0, 0, 0, 5)
         self.main_layout.setSpacing(0)
 
         # Add title bar at the top of the window
@@ -145,7 +145,7 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(main_content_frame)
         
         self.content_layout = QVBoxLayout(main_content_frame)
-        self.content_layout.setContentsMargins(Spacing.MD, Spacing.SM, Spacing.MD, Spacing.XS)  # Reduce bottom margin to eliminate extra space
+        self.content_layout.setContentsMargins(Spacing.MD, Spacing.SM, Spacing.MD, Spacing.XS)  # Restore original margins
         self.content_layout.setSpacing(Spacing.MD)  # Adequate spacing between elements
         
         # Create stacked widget for switching between normal and download modes
@@ -156,16 +156,29 @@ class MainWindow(QMainWindow):
         self.normal_page = QWidget()
         normal_layout = QHBoxLayout(self.normal_page)
         normal_layout.setContentsMargins(0, 0, 0, 0)
-        normal_layout.setSpacing(Spacing.SM)
+        normal_layout.setSpacing(Spacing.SM)  # Restore original spacing
         
         # Drop zone container for normal mode (left side)
         normal_drop_zone_container = QWidget()
+        normal_drop_zone_container.setStyleSheet(f"""
+            QWidget {{
+                background: transparent;
+                border: 2px dashed {theme.colors.PRIMARY};
+                {BorderRadius.get_border_radius(BorderRadius.LARGE)};
+            }}
+        """)
         normal_drop_zone_layout = QVBoxLayout(normal_drop_zone_container)
         normal_drop_zone_layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.SM, Spacing.SM)  # Adequate margins for drop zone
         normal_drop_zone_layout.setSpacing(Spacing.SM)  # Adequate spacing
 
         self.drop_label = ScaledLabel()
         self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.drop_label.setStyleSheet(f"""
+            ScaledLabel {{
+                background: transparent;
+                border: none;
+            }}
+        """)
         
         if self.main_movie.isValid():
             self.drop_label.setMovie(self.main_movie)
@@ -183,6 +196,7 @@ class MainWindow(QMainWindow):
             QLabel {{
                 color: {theme.colors.TEXT_SECONDARY};
                 background-color: transparent;
+                border: none;
                 font-family: {Typography.get_font_family()};
                 {Typography.get_font_style(Typography.H2_SIZE, Typography.WEIGHT_BOLD)};
             }}
@@ -194,6 +208,7 @@ class MainWindow(QMainWindow):
         
         # Add info cards to right side of normal layout
         self.info_cards_frame = QFrame()
+        self.info_cards_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.info_cards_frame.setStyleSheet(f"""
             QFrame {{
                 background: transparent;
@@ -201,10 +216,11 @@ class MainWindow(QMainWindow):
             }}
         """)
         info_cards_layout = QVBoxLayout(self.info_cards_frame)
-        info_cards_layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.MD, Spacing.SM)  # Match log margins
+        info_cards_layout.setContentsMargins(0, 0, 0, 0)  # Remove right margin only for info cards
         info_cards_layout.setSpacing(Spacing.SM)
         
         # Add info cards container
+        self.info_cards.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         info_cards_layout.addWidget(self.info_cards)
         
         normal_layout.addWidget(self.info_cards_frame, 1)  # Takes 1/4 of horizontal space
@@ -217,6 +233,13 @@ class MainWindow(QMainWindow):
         
         # Drop zone container for download mode (top)
         download_drop_zone_container = QWidget()
+        download_drop_zone_container.setStyleSheet(f"""
+            QWidget {{
+                background: transparent;
+                border: 2px dashed {theme.colors.PRIMARY};
+                {BorderRadius.get_border_radius(BorderRadius.LARGE)};
+            }}
+        """)
         download_drop_zone_layout = QVBoxLayout(download_drop_zone_container)
         download_drop_zone_layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.SM, Spacing.SM)
         download_drop_zone_layout.setSpacing(Spacing.SM)
@@ -224,6 +247,12 @@ class MainWindow(QMainWindow):
         # Create separate drop label for download mode
         self.download_drop_label = ScaledLabel()
         self.download_drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.download_drop_label.setStyleSheet(f"""
+            ScaledLabel {{
+                background: transparent;
+                border: none;
+            }}
+        """)
         
         if self.main_movie.isValid():
             self.download_drop_label.setMovie(self.main_movie)
@@ -237,6 +266,7 @@ class MainWindow(QMainWindow):
             QLabel {{
                 color: {theme.colors.TEXT_SECONDARY};
                 background-color: transparent;
+                border: none;
                 font-family: {Typography.get_font_family()};
                 {Typography.get_font_style(Typography.H2_SIZE, Typography.WEIGHT_BOLD)};
             }}
@@ -353,12 +383,13 @@ class MainWindow(QMainWindow):
         from .theme import Typography
         self.log_output.setStyleSheet(f"""
             QTextEdit {{
-                background-color: {theme.colors.SURFACE};
+                background-color: {theme.colors.SURFACE_DARK};
                 color: {theme.colors.TEXT_PRIMARY};
                 font-family: {Typography.get_font_family()};
                 font-size: 10pt;
                 font-weight: 500;
-                border: 1px solid {theme.colors.PRIMARY};
+                border: 1px solid {theme.colors.SURFACE_LIGHT};
+                border-radius: 0px;
             }}
         """)
         # Enable word wrapping and horizontal scrolling for long file paths

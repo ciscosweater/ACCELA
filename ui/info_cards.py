@@ -32,8 +32,9 @@ class InfoCard(QFrame):
     
     def _setup_ui(self):
         """Setup card layout"""
-        self.setFixedSize(180, 80)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.setMinimumHeight(80)
+        self.setMaximumHeight(80)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(Spacing.SM, Spacing.SM, Spacing.SM, Spacing.SM)
@@ -309,6 +310,7 @@ class InfoCardsContainer(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.cards = []
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._setup_ui()
         self._create_cards()
     
@@ -320,12 +322,12 @@ class InfoCardsContainer(QWidget):
         
         # Cards container
         self.cards_widget = QWidget()
+        self.cards_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.cards_layout = QVBoxLayout(self.cards_widget)
         self.cards_layout.setContentsMargins(0, 0, 0, 0)
         self.cards_layout.setSpacing(Spacing.SM)
         
         self.main_layout.addWidget(self.cards_widget)
-        self.main_layout.addStretch()
     
     def _create_cards(self):
         """Create info cards"""
