@@ -921,16 +921,6 @@ class MainWindow(QMainWindow):
                 self.log_output.append(f"User chose not to install Online-Fixes for {game_name}")
                 logger.info(f"User declined Online-Fixes installation for AppID {appid}")
                 
-                # Mensagem informativa
-                info_msg = QMessageBox(self)
-                info_msg.setIcon(QMessageBox.Icon.Information)
-                info_msg.setWindowTitle("No Fix Installed")
-                info_msg.setText(
-                    f"No Online-Fixes were installed for {game_name}.\n\n"
-                    "You can manually install fixes later through the game menu if needed."
-                )
-                info_msg.exec()
-                
                 # Fix was declined, clear the flag
                 self._fix_available = False
                 
@@ -939,8 +929,8 @@ class MainWindow(QMainWindow):
                 self._steam_restart_prompted = False
                 self._prompt_for_steam_restart()
                 
-                # NOTA: Não mostrar _show_download_completion_message() aqui
-                # Apenas o modal de reiniciar Steam deve aparecer
+                # NOTA: Não mostrar modal "No Fix Installed" aqui
+                # Apenas o modal de reiniciar Steam deve aparecer para evitar confusão
                     
         except Exception as e:
             logger.error(f"Error showing fixes available dialog: {e}")
