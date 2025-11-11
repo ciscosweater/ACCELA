@@ -210,12 +210,44 @@ class CustomTitleBar(QFrame):
             button.setIcon(icon)
             button.setIconSize(icon_size)
             button.setFixedSize(22, 22)  # Botões maiores para title bar aumentada
+            button.setStyleSheet(f"""
+                QPushButton {{
+                    border: 1px solid {current_theme.colors.BORDER};
+                    border-radius: 4px;
+                    background: {current_theme.colors.SURFACE};
+                }}
+                QPushButton:hover {{
+                    background: {current_theme.colors.PRIMARY};
+                    border: 1px solid {current_theme.colors.PRIMARY};
+                }}
+                QPushButton:pressed {{
+                    background: {current_theme.colors.PRIMARY_DARK};
+                    border: 1px solid {current_theme.colors.PRIMARY_DARK};
+                }}
+            """)
             button.clicked.connect(on_click)
             return button
         except Exception as e:
             logger.error(f"Failed to create SVG button: {e}", exc_info=True)
+            from .theme import get_current_theme
+            current_theme = get_current_theme()
             fallback_button = QPushButton("X")
             fallback_button.setFixedSize(22, 22)
+            fallback_button.setStyleSheet(f"""
+                QPushButton {{
+                    border: 1px solid {current_theme.colors.BORDER};
+                    border-radius: 4px;
+                    background: {current_theme.colors.SURFACE};
+                }}
+                QPushButton:hover {{
+                    background: {current_theme.colors.PRIMARY};
+                    border: 1px solid {current_theme.colors.PRIMARY};
+                }}
+                QPushButton:pressed {{
+                    background: {current_theme.colors.PRIMARY_DARK};
+                    border: 1px solid {current_theme.colors.PRIMARY_DARK};
+                }}
+            """)
             fallback_button.clicked.connect(on_click)
             return fallback_button
 
@@ -254,7 +286,24 @@ class CustomTitleBar(QFrame):
             return button
         except Exception as e:
             logger.error(f"Failed to create text button: {e}", exc_info=True)
+            from .theme import get_current_theme
+            current_theme = get_current_theme()
             fallback_button = QPushButton("?")
             fallback_button.setFixedSize(22, 22)
+            fallback_button.setStyleSheet(f"""
+                QPushButton {{
+                    border: 1px solid {current_theme.colors.BORDER};
+                    border-radius: 4px;
+                    background: {current_theme.colors.SURFACE};
+                }}
+                QPushButton:hover {{
+                    background: {current_theme.colors.PRIMARY};
+                    border: 1px solid {current_theme.colors.PRIMARY};
+                }}
+                QPushButton:pressed {{
+                    background: {current_theme.colors.PRIMARY_DARK};
+                    border: 1px solid {current_theme.colors.PRIMARY_DARK};
+                }}
+            """)
             fallback_button.clicked.connect(on_click)
             return fallback_button
