@@ -651,8 +651,8 @@ class MainWindow(QMainWindow):
         # Hide controls after a short delay
         QTimer.singleShot(2000, self._hide_download_controls)
         
-        # Reset UI state after completion - shorter delay for better UX
-        QTimer.singleShot(5000, self._safe_reset_ui_state)  # 5 seconds instead of 15
+        # Store UI reset timer reference so we can cancel it if fixes are needed
+        self._ui_reset_timer = QTimer.singleShot(8000, self._safe_reset_ui_state)  # 8 seconds, only if no fixes
         
     def _on_download_error(self, error_message):
         """Handle download errors"""
@@ -741,6 +741,10 @@ class MainWindow(QMainWindow):
                 fixes_available.append(('Online-Fix', online_fix.get('url'), 'online'))
             
             if fixes_available:
+                # Cancel UI reset timer since we need to show fix dialog
+                self._ui_reset_cancelled = True
+                logger.debug("Cancelling UI reset timer - fixes dialog will be shown")
+                
                 # Usar QTimer para evitar deadlock com modais
                 QTimer.singleShot(100, lambda: self._show_fixes_available_dialog(game_name, appid, fixes_available))
             else:
@@ -933,6 +937,9 @@ class MainWindow(QMainWindow):
                 
                 # NOTA: Não mostrar modal "No Fix Installed" aqui
                 # Apenas o modal de reiniciar Steam deve aparecer para evitar confusão
+                
+                # Schedule UI reset after Steam restart prompt handling
+                QTimer.singleShot(3000, self._safe_reset_ui_state)
                     
         except Exception as e:
             logger.error(f"Error showing fixes available dialog: {e}")
@@ -1054,6 +1061,9 @@ class MainWindow(QMainWindow):
         finally:
             # Always reset the flag when done
             self._fix_dialog_open = False
+            
+            # Trigger UI reset after a short delay if no other operations are pending
+            QTimer.singleShot(2000, self._safe_reset_ui_state)
 
     def _get_current_install_path(self) -> str:
         """Obtém caminho de instalação do jogo atual"""
@@ -1464,6 +1474,11 @@ class MainWindow(QMainWindow):
 
     def _safe_reset_ui_state(self):
         """Safe reset that preserves critical data if fix might be applied"""
+        # Check if UI reset was cancelled due to fix operations
+        if hasattr(self, '_ui_reset_cancelled') and self._ui_reset_cancelled:
+            logger.debug("UI reset cancelled - fix operations in progress")
+            return
+            
         # Only reset if we're not in the middle of fix operations
         if not hasattr(self, '_fix_dialog_open') or not self._fix_dialog_open:
             self._reset_ui_state()
