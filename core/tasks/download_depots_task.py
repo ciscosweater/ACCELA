@@ -51,9 +51,12 @@ class DownloadDepotsTask(QObject):
     def __init__(self):
         super().__init__()
         self.percentage_regex = re.compile(r"(\d{1,3}\.\d{2})%")
+        self.bytes_regex = re.compile(r"Depot (\d+) - Downloaded (\d+) bytes \((\d+) bytes uncompressed\)")
         self.last_percentage = -1
         self.steamless_integration = None
         self.game_data = None
+        self.total_downloaded = 0
+        self.total_uncompressed = 0
         
         # Controle de cancelamento
         self._should_stop = False
@@ -346,6 +349,8 @@ class DownloadDepotsTask(QObject):
         """Processes a line of output from the downloader."""
         line = line.strip()
         self.progress.emit(line)
+        
+        # Check for percentage
         match = self.percentage_regex.search(line)
         if match:
             percentage = float(match.group(1))
@@ -354,6 +359,19 @@ class DownloadDepotsTask(QObject):
             if int_percentage != self.last_percentage:
                 self.progress_percentage.emit(int_percentage)
                 self.last_percentage = int_percentage
+        
+        # Check for bytes information
+        bytes_match = self.bytes_regex.search(line)
+        if bytes_match:
+            depot_id = bytes_match.group(1)
+            downloaded = int(bytes_match.group(2))
+            uncompressed = int(bytes_match.group(3))
+            
+            self.total_downloaded += downloaded
+            self.total_uncompressed += uncompressed
+            
+            logger.debug(f"Depot {depot_id} - Downloaded {downloaded} bytes ({uncompressed} bytes uncompressed)")
+            logger.debug(f"Total downloaded: {self.total_downloaded} bytes ({self.total_uncompressed} bytes uncompressed) from {len(self.game_data.get('depots', {}))} depots")
 
     def _is_steamless_enabled(self):
         """Check if Steamless DRM removal is enabled in settings"""

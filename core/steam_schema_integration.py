@@ -351,6 +351,27 @@ class SteamSchemaIntegration:
                 env['TERM'] = 'xterm'  # Proper terminal type
                 env['SHELL'] = '/bin/bash'  # Force bash shell
                 
+                # Create a wrapper script to handle Windows cls command on Linux
+                wrapper_script = f'''#!/bin/bash
+# Create alias for Windows cls command
+cls() {{
+    clear
+}}
+export -f cls
+
+# Run SLScheevo with original arguments
+exec "{slscheevo_build}" "$@"
+'''
+                
+                # Write wrapper script to temporary file
+                import tempfile
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+                    f.write(wrapper_script)
+                    wrapper_path = f.name
+                
+                # Make wrapper executable
+                os.chmod(wrapper_path, 0o755)
+                
                 # Get available usernames dynamically
                 usernames = self._get_available_slscheevo_usernames(slscheevo_dir)
                 
@@ -371,9 +392,9 @@ class SteamSchemaIntegration:
                     username = usernames[0]
                     logger.info(f"Using first available SLScheevo username: {username}")
                 
-                # Build SLScheevo command for specific app_id
+                # Build SLScheevo command for specific app_id using wrapper
                 cmd = [
-                    slscheevo_build,
+                    wrapper_path,
                     "--silent",        # Silent mode - no interactive prompts
                     "--appid", str(app_id_int)  # Specify the app ID
                 ]
@@ -396,6 +417,12 @@ class SteamSchemaIntegration:
                     timeout=300,  # 5 minute timeout
                     env=env  # Use modified environment
                 )
+                
+                # Clean up wrapper script
+                try:
+                    os.unlink(wrapper_path)
+                except:
+                    pass
                 
                 # Log output for debugging
                 if result.stdout:

@@ -2,6 +2,7 @@
 Enhanced Game Image Manager - Multiple fallback sources and formats
 """
 import logging
+import os
 import requests
 from typing import Optional, List, Dict, Tuple
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
@@ -99,10 +100,17 @@ class GameImageManager(QObject):
             List of image URLs or None if failed
         """
         try:
+            headers = {
+                'User-Agent': 'ACCELA/1.0 (Steam Game Manager)',
+                'Accept': 'application/json',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Cache-Control': 'no-cache'
+            }
+            
             for api_endpoint in self.api_endpoints:
                 try:
                     url = f"{api_endpoint}&appids={app_id}"
-                    response = requests.get(url, timeout=5)
+                    response = requests.get(url, headers=headers, timeout=5)
                     response.raise_for_status()
                     
                     data = response.json()
@@ -139,6 +147,47 @@ class GameImageManager(QObject):
             logger.error(f"API fallback failed for app {app_id}: {e}")
         
         return None
+    
+    def get_fallback_image(self) -> Optional[QPixmap]:
+        """
+        Get fallback image when no game image is available
+        
+        Returns:
+            QPixmap with fallback image or None
+        """
+        try:
+            # Try to load a default image from assets
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(current_dir)
+            fallback_path = os.path.join(project_root, "assets", "images", "accela.png")
+            
+            if os.path.exists(fallback_path):
+                pixmap = QPixmap()
+                if pixmap.load(fallback_path):
+                    logger.debug("Using fallback ACCELA image")
+                    return pixmap
+            
+            # Create a simple colored placeholder if no image available
+            from PyQt6.QtGui import QPainter, QColor, QFont
+            
+            pixmap = QPixmap(460, 215)  # Standard header size
+            pixmap.fill(QColor(64, 64, 64))  # Dark gray background
+            
+            painter = QPainter(pixmap)
+            painter.setPen(QColor(255, 255, 255))
+            painter.setFont(QFont("Arial", 16))
+            
+            # Draw "No Image" text
+            text = "No Image Available"
+            rect = pixmap.rect()
+            painter.drawText(rect, 1, text)  # Qt.AlignCenter
+            painter.end()
+            
+            return pixmap
+            
+        except Exception as e:
+            logger.error(f"Error creating fallback image: {e}")
+            return None
     
     def download_image(self, url: str, timeout: int = 10) -> Optional[bytes]:
         """
@@ -255,6 +304,12 @@ class GameImageThread(QThread):
                 self.image_ready.emit(self.app_id, image, "fallback:api")
                 return
             
+            # Strategy 6: Try fallback image
+            image = self.manager.get_fallback_image()
+            if image:
+                self.image_ready.emit(self.app_id, image, "fallback:default")
+                return
+            
             # All strategies failed
             self.image_failed.emit(self.app_id, "No valid image found after all fallback strategies")
             
@@ -361,4 +416,45 @@ class GameImageThread(QThread):
             return None
         except Exception as e:
             logger.debug(f"API fallback failed for app {self.app_id}: {e}")
+            return None
+    
+    def get_fallback_image(self) -> Optional[QPixmap]:
+        """
+        Get fallback image when no game image is available
+        
+        Returns:
+            QPixmap with fallback image or None
+        """
+        try:
+            # Try to load a default image from assets
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.dirname(current_dir)
+            fallback_path = os.path.join(project_root, "assets", "images", "accela.png")
+            
+            if os.path.exists(fallback_path):
+                pixmap = QPixmap()
+                if pixmap.load(fallback_path):
+                    logger.debug("Using fallback ACCELA image")
+                    return pixmap
+            
+            # Create a simple colored placeholder if no image available
+            from PyQt6.QtGui import QPainter, QColor, QFont
+            
+            pixmap = QPixmap(460, 215)  # Standard header size
+            pixmap.fill(QColor(64, 64, 64))  # Dark gray background
+            
+            painter = QPainter(pixmap)
+            painter.setPen(QColor(255, 255, 255))
+            painter.setFont(QFont("Arial", 16))
+            
+            # Draw "No Image" text
+            text = "No Image Available"
+            rect = pixmap.rect()
+            painter.drawText(rect, 1, text)  # Qt.AlignCenter
+            painter.end()
+            
+            return pixmap
+            
+        except Exception as e:
+            logger.error(f"Error creating fallback image: {e}")
             return None
