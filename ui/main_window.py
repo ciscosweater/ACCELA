@@ -1222,7 +1222,7 @@ class MainWindow(QMainWindow):
         download_movie = QMovie(random_gif_path)
         if download_movie.isValid():
             self.current_movie = download_movie
-            self.drop_label.setMovie(self.current_movie)
+            self.download_drop_label.setMovie(self.current_movie)
             self.current_movie.start()
         
         # Configurar UI para download com widget minimalista
