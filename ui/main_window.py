@@ -1777,6 +1777,17 @@ class MainWindow(QMainWindow):
             logger.error(f"Error opening Game Manager: {e}")
             QMessageBox.critical(self, "Error", f"Failed to open Game Manager: {e}")
     
+    def _open_backup_dialog(self):
+        """Open the Backup/Restore dialog for Steam stats"""
+        try:
+            from ui.backup_dialog import BackupDialog
+            dialog = BackupDialog(self)
+            dialog.exec()
+            logger.info("Backup dialog opened and closed")
+        except Exception as e:
+            logger.error(f"Error opening Backup dialog: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to open Backup dialog: {e}")
+    
     def closeEvent(self, event):
         self._stop_speed_monitor()
         

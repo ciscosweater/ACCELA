@@ -96,6 +96,12 @@ class CustomTitleBar(QFrame):
         )
         right_layout.addWidget(self.game_manager_button)
 
+        # Add backup button
+        self.backup_button = self._create_text_button(
+            "BK", getattr(parent, "_open_backup_dialog", lambda: None), "Backup/Restore Stats"
+        )
+        right_layout.addWidget(self.backup_button)
+
         self.settings_button = self._create_svg_button(
             GEAR_SVG, getattr(parent, "open_settings", lambda: None), "Open Settings"
         )
