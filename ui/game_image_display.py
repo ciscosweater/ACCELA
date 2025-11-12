@@ -1,10 +1,11 @@
 import logging
-import urllib.request
 from PyQt6.QtCore import QThread, pyqtSignal, QObject, Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
 from ui.theme import theme, Typography, Spacing
+from ui.game_image_manager import GameImageManager
+from utils.image_cache import ImageCacheManager
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,10 @@ class GameImageDisplay(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.game_header_image = None
+        
+        # Initialize enhanced image manager
+        self.cache_manager = ImageCacheManager()
+        self.image_manager = GameImageManager(self.cache_manager)
         
     def setup_game_image_area(self, main_layout):
         """Create and setup the game image display area."""
@@ -101,24 +106,32 @@ class GameImageDisplay(QObject):
         self.game_status_label.setText(status)
         
     def _fetch_game_header_image(self, app_id):
-        """Fetch game header image for display during download."""
-        url = f"https://cdn.akamai.steamstatic.com/steam/apps/{app_id}/header.jpg"
-        
-        self.image_thread = QThread()
-        self.image_fetcher = ImageFetcher(url)
-        self.image_fetcher.moveToThread(self.image_thread)
-        
-        self.image_thread.started.connect(self.image_fetcher.run)
-        self.image_fetcher.finished.connect(self.on_game_image_fetched)
-        
-        self.image_fetcher.finished.connect(self.image_thread.quit)
-        self.image_fetcher.finished.connect(self.image_fetcher.deleteLater)
-        self.image_thread.finished.connect(self.image_thread.deleteLater)
-        
-        self.image_thread.start()
+        """Fetch game header image for display during download using enhanced manager."""
+        # Use enhanced image manager with multiple fallbacks
+        self.image_thread = self.image_manager.get_game_image(app_id, preferred_format="header")
+        self.image_thread.image_ready.connect(self._on_enhanced_image_ready)
+        self.image_thread.image_failed.connect(self._on_enhanced_image_error)
 
+    def _on_enhanced_image_ready(self, app_id, pixmap, source_info):
+        """Handle successfully fetched game image from enhanced manager."""
+        if pixmap and not pixmap.isNull():
+            self.game_header_image = pixmap
+            self.game_header_label.setPixmap(pixmap.scaled(
+                184, 69, 
+                Qt.AspectRatioMode.KeepAspectRatio, 
+                Qt.TransformationMode.SmoothTransformation
+            ))
+            logger.debug(f"Loaded game image for app {app_id} from {source_info}")
+        else:
+            self.game_header_label.setText("[IMAGE]\nNo Image")
+    
+    def _on_enhanced_image_error(self, app_id, error_message):
+        """Handle game image fetch error from enhanced manager."""
+        logger.warning(f"Failed to fetch image for app {app_id}: {error_message}")
+        self.game_header_label.setText("[IMAGE]\nNo Image")
+    
     def on_game_image_fetched(self, image_data):
-        """Handle fetched game header image."""
+        """Handle fetched game header image (legacy method)."""
         if image_data:
             pixmap = QPixmap()
             pixmap.loadFromData(image_data)
@@ -132,6 +145,7 @@ class GameImageDisplay(QObject):
             self.game_header_label.setText("[IMAGE]\nNo Image")
 
 class ImageFetcher(QObject):
+    """Legacy ImageFetcher - kept for backward compatibility"""
     finished = pyqtSignal(bytes)
 
     def __init__(self, url):
@@ -140,6 +154,7 @@ class ImageFetcher(QObject):
 
     def run(self):
         try:
+            import urllib.request
             with urllib.request.urlopen(self.url) as response:
                 data = response.read()
                 self.finished.emit(data)

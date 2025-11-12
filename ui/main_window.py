@@ -20,6 +20,8 @@ from ui.enhanced_dialogs import SettingsDialog, DepotSelectionDialog, SteamLibra
 from ui.font_settings_dialog import FontSettingsDialog
 from ui.enhanced_widgets import EnhancedProgressBar
 from ui.game_image_display import GameImageDisplay, ImageFetcher
+from ui.game_image_manager import GameImageManager
+from utils.image_cache import ImageCacheManager
 from ui.interactions import HoverButton, ModernFrame, AnimatedLabel
 from ui.shortcuts import KeyboardShortcuts
 from ui.notification_system import NotificationManager
@@ -123,8 +125,9 @@ class MainWindow(QMainWindow):
         # Persist game data for Online-Fixes
         self._current_game_data = None
         
-        # Image cache manager
+        # Image cache manager and enhanced image manager
         self.image_cache_manager = ImageCacheManager()
+        self.game_image_manager = GameImageManager(self.image_cache_manager)
         
         self._setup_ui()
         self._setup_download_connections()
@@ -1286,15 +1289,18 @@ class MainWindow(QMainWindow):
                 game_image = self.game_header_image
                 logger.debug("Using cached game_header_image")
         
-        # Strategy 3: Try to get from image cache manager
+        # Strategy 3: Try to get from enhanced image cache manager (multiple formats)
         if not game_image and self.game_data:
             app_id = self.game_data.get('appid')
             if app_id:
-                url = f"https://cdn.akamai.steamstatic.com/steam/apps/{app_id}/header.jpg"
-                cached_image = self.image_cache_manager.get_cached_image(str(app_id), url)
-                if cached_image and not cached_image.isNull():
-                    game_image = cached_image
-                    logger.debug("Using image from cache manager")
+                # Try all possible image URLs from enhanced manager
+                urls = self.game_image_manager.get_image_urls(str(app_id))
+                for url_info in urls:
+                    cached_image = self.image_cache_manager.get_cached_image(str(app_id), url_info["url"])
+                    if cached_image and not cached_image.isNull():
+                        game_image = cached_image
+                        logger.debug(f"Using cached image from {url_info['format']}")
+                        break
         
         # Strategy 4: Create fallback placeholder
         if not game_image:
@@ -1561,30 +1567,11 @@ class MainWindow(QMainWindow):
                     QMessageBox.warning(self, "Steam Not Found", "Could not restart Steam automatically. Please start it manually.")
 
     def _fetch_game_header_image(self, app_id):
-        """Fetch game header image for display during download."""
-        url = f"https://cdn.akamai.steamstatic.com/steam/apps/{app_id}/header.jpg"
-        
-        # Try cache first
-        cached_image = self.image_cache_manager.get_cached_image(str(app_id), url)
-        if cached_image:
-            self._display_game_image(cached_image)
-            return
-        
-        # Download with cache
-        from utils.image_cache import ImageFetcher
-        self.image_thread = QThread()
-        self.image_fetcher = ImageFetcher(str(app_id), url, self.image_cache_manager)
-        self.image_fetcher.moveToThread(self.image_thread)
-        
-        self.image_thread.started.connect(self.image_fetcher.run)
-        self.image_fetcher.image_ready.connect(self._on_game_image_ready)
-        self.image_fetcher.error_occurred.connect(self._on_game_image_error)
-        
-        self.image_fetcher.finished.connect(self.image_thread.quit)
-        self.image_fetcher.finished.connect(self.image_fetcher.deleteLater)
-        self.image_thread.finished.connect(self.image_thread.deleteLater)
-        
-        self.image_thread.start()
+        """Fetch game header image for display during download using enhanced manager."""
+        # Use enhanced image manager with multiple fallbacks
+        self.image_thread = self.game_image_manager.get_game_image(str(app_id), preferred_format="header")
+        self.image_thread.image_ready.connect(self._on_enhanced_game_image_ready)
+        self.image_thread.image_failed.connect(self._on_enhanced_game_image_error)
     
     def _on_game_image_ready(self, app_id, pixmap):
         """Handle successfully fetched game image"""
@@ -1622,6 +1609,20 @@ class MainWindow(QMainWindow):
         fallback_pixmap = self._create_fallback_image_large()
         self.game_header_label.setPixmap(fallback_pixmap)
         self.game_header_label.setFixedSize(184, 69)  # Steam header size
+    
+    def _on_enhanced_game_image_ready(self, app_id, pixmap, source_info):
+        """Handle successfully fetched game image from enhanced manager."""
+        if pixmap and not pixmap.isNull():
+            self._display_game_image(pixmap)
+            self.game_header_image = pixmap
+            logger.debug(f"Loaded game image for app {app_id} from {source_info}")
+        else:
+            self._display_no_image()
+    
+    def _on_enhanced_game_image_error(self, app_id, error_message):
+        """Handle game image fetch error from enhanced manager."""
+        logger.warning(f"Failed to fetch image for app {app_id}: {error_message}")
+        self._display_no_image()
     
     def _create_fallback_image_large(self):
         """Create a large fallback placeholder image for header display"""

@@ -1,5 +1,4 @@
 import logging
-import urllib.request
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QLineEdit, QTextEdit, QListWidget, QListWidgetItem, QFileDialog, QMessageBox,
@@ -34,6 +33,7 @@ class ImageFetcher(QObject):
 
     def run(self):
         try:
+            import urllib.request
             with urllib.request.urlopen(self.url) as response:
                 data = response.read()
                 self.finished.emit(data)
