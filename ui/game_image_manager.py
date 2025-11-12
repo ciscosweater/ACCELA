@@ -61,6 +61,7 @@ class GameImageManager(QObject):
         thread = GameImageThread(app_id, preferred_format, self)
         thread.image_ready.connect(self.image_ready.emit)
         thread.image_failed.connect(self.image_failed.emit)
+        thread.finished.connect(thread.deleteLater)  # Clean up thread when finished
         thread.start()
         return thread
     
@@ -264,6 +265,7 @@ class GameImageThread(QThread):
     
     image_ready = pyqtSignal(str, object, str)  # app_id, QPixmap, source_info
     image_failed = pyqtSignal(str, str)  # app_id, error_message
+    finished = pyqtSignal()  # Thread completion signal
     
     def __init__(self, app_id: str, preferred_format: str, manager: GameImageManager):
         super().__init__()
@@ -316,6 +318,8 @@ class GameImageThread(QThread):
         except Exception as e:
             logger.error(f"Error in GameImageThread for app {self.app_id}: {e}")
             self.image_failed.emit(self.app_id, str(e))
+        finally:
+            self.finished.emit()  # Always emit finished signal
     
     def _try_cache(self) -> Optional[QPixmap]:
         """Try to get image from cache"""
