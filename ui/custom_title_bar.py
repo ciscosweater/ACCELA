@@ -188,52 +188,62 @@ class CustomTitleBar(QFrame):
         Helper method to create a button from SVG data, recoloring the icon without distortion.
         """
         try:
-            button = QPushButton()
+            class SvgButton(QPushButton):
+                def __init__(self, svg_data, icon_size):
+                    super().__init__()
+                    self.svg_data = svg_data
+                    self.icon_size = icon_size
+                    
+                def update_icon(self, color):
+                    """Update icon with specified color"""
+                    renderer = QSvgRenderer(self.svg_data.encode("utf-8"))
+                    pixmap = QPixmap(self.icon_size)
+                    pixmap.fill(Qt.GlobalColor.transparent)
+                    painter = QPainter(pixmap)
+                    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                    renderer.render(painter)
+                    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+                    painter.fillRect(pixmap.rect(), QColor(color))
+                    painter.end()
+                    self.setIcon(QIcon(pixmap))
+                    self.setIconSize(self.icon_size)
+                
+                def enterEvent(self, event):
+                    from .theme import theme
+                    self.update_icon(theme.colors.TEXT_ON_PRIMARY)
+                    super().enterEvent(event)
+                    
+                def leaveEvent(self, a0):
+                    from .theme import theme
+                    self.update_icon(theme.colors.TEXT_ACCENT)
+                    super().leaveEvent(a0)
+            
+            button = SvgButton(svg_data, QSize(18, 18))
             button.setToolTip(tooltip)
-
-            renderer = QSvgRenderer(svg_data.encode("utf-8"))
-            icon_size = QSize(18, 18)  # Larger icons for larger buttons
-
-            pixmap = QPixmap(icon_size)
-            pixmap.fill(Qt.GlobalColor.transparent)
-            painter = QPainter(pixmap)
-
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-            renderer.render(painter)
-
-            painter.setCompositionMode(
-                QPainter.CompositionMode.CompositionMode_SourceIn
-            )
-
+            
             from .theme import theme
-
-            painter.fillRect(pixmap.rect(), QColor(theme.colors.TEXT_ACCENT))
-
-            painter.end()
-
-            icon = QIcon(pixmap)
-
-            button.setIcon(icon)
-            button.setIconSize(icon_size)
+            
+            # Set initial icon
+            button.update_icon(theme.colors.TEXT_ACCENT)
+            
             button.setFixedSize(22, 22)  # Larger buttons for increased title bar
-            from .theme import theme
 
             button.setStyleSheet(f"""
                 QPushButton {{
-                    border: 1px solid {theme.colors.BORDER};
+                    border: 1px solid {theme.colors.PRIMARY};
                     {BorderRadius.get_border_radius(BorderRadius.SMALL)};
-                    background: {theme.colors.SURFACE};
+                    background: {theme.colors.BACKGROUND};
                 }}
                 QPushButton:hover {{
-                    background: {theme.colors.PRIMARY};
+                    background: {theme.colors.SURFACE_DARK};
                     border: 1px solid {theme.colors.PRIMARY};
                 }}
                 QPushButton:pressed {{
-                    background: {theme.colors.PRIMARY_DARK};
+                    background: {theme.colors.SURFACE_DARK};
                     border: 1px solid {theme.colors.PRIMARY_DARK};
                 }}
             """)
+            
             button.clicked.connect(on_click)
             return button
         except Exception as e:
@@ -255,20 +265,20 @@ class CustomTitleBar(QFrame):
 
             button.setStyleSheet(f"""
                 QPushButton {{
-                    border: 1px solid {theme.colors.BORDER};
+                    border: 1px solid {theme.colors.PRIMARY};
                     border-radius: {BorderRadius.SMALL}px;
                     color: {theme.colors.TEXT_ACCENT};
                     {Typography.get_font_style(Typography.CAPTION_SIZE)};
                     font-weight: bold;
-                    background: {theme.colors.SURFACE};
+                    background: {theme.colors.BACKGROUND};
                 }}
                 QPushButton:hover {{
-                    background: {theme.colors.PRIMARY};
+                    background: {theme.colors.SURFACE_DARK};
                     color: {theme.colors.TEXT_ON_PRIMARY};
                     border: 1px solid {theme.colors.PRIMARY};
                 }}
                 QPushButton:pressed {{
-                    background: {theme.colors.PRIMARY_DARK};
+                    background: {theme.colors.SURFACE_DARK};
                     border: 1px solid {theme.colors.PRIMARY_DARK};
                 }}
             """)

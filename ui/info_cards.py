@@ -95,7 +95,7 @@ class InfoCard(QFrame):
         self.setStyleSheet(f"""
             QFrame {{
                 background: {Colors.BACKGROUND};
-                border: 1px solid {Colors.BORDER_LIGHT};
+                border: 1px solid {Colors.PRIMARY};
                 {BorderRadius.get_border_radius(BorderRadius.MEDIUM)};
             }}
             QFrame:hover {{
