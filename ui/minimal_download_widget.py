@@ -109,11 +109,13 @@ class MinimalDownloadWidget(QWidget):
                 background: transparent;
             }}
         """)
-        self.status_label.setWordWrap(True)
+        self.status_label.setWordWrap(False)
         self.status_label.setMaximumWidth(400)
+        self.status_label.setMinimumHeight(20)
         self.status_label.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
+        self.status_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.status_label.hide()
 
         header_layout.addWidget(self.game_image_label)
@@ -338,26 +340,29 @@ class MinimalDownloadWidget(QWidget):
         self.status_label.hide()
 
         # Enhanced image handling with fallback
-        # Always clear previous image first to ensure update
-        self.game_image_label.clear()
+        # Only clear and update image if a new image is provided
+        if game_image is not None:
+            # Clear previous image only when updating with new image
+            self.game_image_label.clear()
 
-        if game_image and not game_image.isNull():
-            # Create a copy to avoid reference issues
-            from PyQt6.QtGui import QPixmap
-            image_copy = QPixmap(game_image)
-            scaled_pixmap = image_copy.scaled(
-                120,
-                56,
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self.game_image_label.setPixmap(scaled_pixmap)
-            self.game_image_label.show()
-        else:
-            # Use fallback image
-            fallback_pixmap = self._create_fallback_image()
-            self.game_image_label.setPixmap(fallback_pixmap)
-            self.game_image_label.show()
+            if not game_image.isNull():
+                # Create a copy to avoid reference issues
+                from PyQt6.QtGui import QPixmap
+                image_copy = QPixmap(game_image)
+                scaled_pixmap = image_copy.scaled(
+                    120,
+                    56,
+                    Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self.game_image_label.setPixmap(scaled_pixmap)
+                self.game_image_label.show()
+            else:
+                # Use fallback image only if new image is explicitly provided but invalid
+                fallback_pixmap = self._create_fallback_image()
+                self.game_image_label.setPixmap(fallback_pixmap)
+                self.game_image_label.show()
+        # If no new image provided, preserve existing image (important for resume functionality)
 
         # Mostrar nome do jogo se fornecido
         if game_name:
@@ -408,6 +413,7 @@ class MinimalDownloadWidget(QWidget):
 
         # Show completion status
         self.status_label.setText(tr("MinimalDownloadWidget", "Download completed!"))
+        self.status_label.setToolTip(tr("MinimalDownloadWidget", "Download completed!"))
         self.status_label.show()
 
         self.progress_bar.setStyleSheet(f"""
@@ -433,6 +439,7 @@ class MinimalDownloadWidget(QWidget):
 
         # Show error message
         self.status_label.setText(message)
+        self.status_label.setToolTip(message)
         self.status_label.show()
 
         self.progress_bar.setStyleSheet(f"""
@@ -453,6 +460,7 @@ class MinimalDownloadWidget(QWidget):
 
         # Show basic elements in idle state
         self.status_label.setText(tr("MinimalDownloadWidget", "Ready to download"))
+        self.status_label.setToolTip(tr("MinimalDownloadWidget", "Ready to download"))
         self.status_label.show()
         self.game_image_label.hide()
         self.game_image_label.clear()  # Clear image to prevent stale references
@@ -515,8 +523,7 @@ class MinimalDownloadWidget(QWidget):
 
         if self.current_state == "downloading":
             if self.total_size > 0:
-                percentage = self.downloaded_size / self.total_size * 100
-                text = f"{downloaded_formatted} / {total_formatted} ({percentage:.1f}%)"
+                text = f"{tr('MinimalDownloadWidget', 'Size')}: {total_formatted}"
             else:
                 text = f"{tr('MinimalDownloadWidget', 'Downloaded')}: {downloaded_formatted}"
             self.size_label.setText(text)
@@ -531,8 +538,7 @@ class MinimalDownloadWidget(QWidget):
                 )
         elif self.current_state == "paused":
             if self.total_size > 0:
-                percentage = self.downloaded_size / self.total_size * 100
-                text = f"{downloaded_formatted} / {total_formatted} ({percentage:.1f}%)"
+                text = f"{tr('MinimalDownloadWidget', 'Size')}: {total_formatted}"
             else:
                 text = (
                     f"{tr('MinimalDownloadWidget', 'Paused')}: {downloaded_formatted}"
@@ -563,6 +569,8 @@ class MinimalDownloadWidget(QWidget):
         """Update status message"""
         if hasattr(self, 'status_label') and self.status_label:
             self.status_label.setText(message)
+            # Set tooltip with full text in case it gets truncated
+            self.status_label.setToolTip(message)
             self.status_label.show()
 
     def reset(self):

@@ -584,6 +584,10 @@ class MainWindow(QMainWindow):
             if hasattr(self, "game_title_label"):
                 self.game_title_label.setText(tr("MainWindow", "ACCELA"))
 
+            # Reset game header image to prevent stale references
+            if hasattr(self, "game_header_label"):
+                self.game_header_label.clear()
+
             # Reset current data - preserve dest_path only if fix might be needed
             self.game_data = None
             # Only clear dest_path if it's from a completed download that won't need fixes
@@ -681,7 +685,7 @@ class MainWindow(QMainWindow):
         self.current_session = None
         self._reset_ui_state()
 
-    def _on_download_completed(self, install_path):
+    def _on_download_completed(self, session_id: str, install_path: str):
         """Handle download completion"""
         try:
             logger.debug("Download completion handler started")
@@ -702,7 +706,7 @@ class MainWindow(QMainWindow):
             # Check for Online-Fixes after download completion
             if install_path and os.path.exists(install_path):
                 logger.debug("Checking for Online-Fixes...")
-                self._check_for_online_fixes(install_path)
+                self._check_for_online_fixes()
             else:
                 # Always show Steam restart prompt even without install_path
                 # (SLSsteam may have been set up during download)
@@ -753,6 +757,8 @@ class MainWindow(QMainWindow):
 
     def _check_for_online_fixes(self):
         """Inicia verificação de Online-Fixes para o jogo baixado"""
+        logger.info("_check_for_online_fixes() called")
+        self.log_output.append("Starting Online-Fixes verification...")
         try:
             if not self.game_data:
                 logger.warning("No game data available for Online-Fixes check")
@@ -836,14 +842,20 @@ class MainWindow(QMainWindow):
                 fixes_available.append(
                     ("Generic Fix", generic_fix.get("url"), "generic")
                 )
+                logger.debug(f"Found Generic Fix available: {generic_fix.get('url')}")
 
             if online_fix.get("available"):
                 fixes_available.append(("Online-Fix", online_fix.get("url"), "online"))
+                logger.debug(f"Found Online-Fix available: {online_fix.get('url')}")
+
+            logger.info(f"Fix check completed for {appid}: Found {len(fixes_available)} fixes")
+            self.log_output.append(f"Fix check completed for {game_name}: Found {len(fixes_available)} fixes")
 
             if fixes_available:
                 # Cancel UI reset timer since we need to show fix dialog
                 self._ui_reset_cancelled = True
-                logger.debug("Cancelling UI reset timer - fixes dialog will be shown")
+                logger.info(f"About to show fixes dialog with {len(fixes_available)} fixes for {game_name}")
+                self.log_output.append(f"Online-Fixes available for {game_name}! Showing dialog...")
 
                 # Usar QTimer para evitar deadlock com modais
                 QTimer.singleShot(
@@ -872,6 +884,8 @@ class MainWindow(QMainWindow):
         self, game_name: str, appid: int, fixes_available: list
     ):
         """Mostra diálogo informativo com fixes disponíveis para aplicação"""
+        logger.info(f"_show_fixes_available_dialog called with game_name={game_name}, appid={appid}, fixes_count={len(fixes_available)}")
+        self.log_output.append(f"Showing fixes dialog for {game_name} ({len(fixes_available)} fixes available)...")
         try:
             from PyQt6.QtCore import Qt
             from PyQt6.QtWidgets import (
@@ -948,7 +962,7 @@ class MainWindow(QMainWindow):
             scroll_layout.setSpacing(Spacing.SM)
 
             # Adicionar cada fix disponível
-            for fix_name, fix_url, fix_type in enumerate(fixes_available):
+            for fix_name, fix_url, fix_type in fixes_available:
                 fix_frame = QFrame()
                 fix_frame.setStyleSheet(f"""
                     QFrame {{
@@ -1053,7 +1067,10 @@ class MainWindow(QMainWindow):
             layout.addLayout(buttons_layout)
 
             # Mostrar diálogo
+            logger.info(f"Executing fixes dialog for {game_name}")
+            self.log_output.append(f"Executing fixes dialog...")
             result = dialog.exec()
+            logger.info(f"Dialog result: {result}")
 
             # Se o usuário fechou sem escolher, mostrar mensagem informativa
             if result == QDialog.DialogCode.Rejected:
@@ -1084,9 +1101,16 @@ class MainWindow(QMainWindow):
                 QTimer.singleShot(3000, self._safe_reset_ui_state)
 
         except Exception as e:
-            logger.error(f"Error showing fixes available dialog: {e}")
+            logger.error(f"Error showing fixes available dialog: {e}", exc_info=True)
             self.log_output.append(
                 tr("MainWindow", "Error showing fixes dialog: {0}").format(e)
+            )
+            # Mostrar diálogo de erro mais explícito
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to show fixes dialog:\n{str(e)}\n\nCheck the logs for more details."
             )
 
     def _on_fix_download_progress(self, message: str):
