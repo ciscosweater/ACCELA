@@ -191,7 +191,7 @@ chmod +x "$RELEASE_DIR/INSTALL"
 # Create release archive
 echo "Creating release archive..."
 cd release
-RELEASE_FILE="ACCELA-RELEASE-v1.1.0.tar.gz"
+RELEASE_FILE="ACCELA-RELEASE-v1.1.1.tar.gz"
 tar -czf "$RELEASE_FILE" ACCELA-RELEASE/
 
 echo "Release created: release/$RELEASE_FILE"

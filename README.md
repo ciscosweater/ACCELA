@@ -67,7 +67,7 @@ chmod +x create_release.sh
 The release script creates an `INSTALL` script for easy deployment to user systems. Users can then install by extracting and running:
 
 ```bash
-tar -xzf ACCELA-RELEASE-v1.1.0.tar.gz
+tar -xzf ACCELA-RELEASE-v1.1.1.tar.gz
 cd ACCELA-RELEASE
 ./INSTALL
 ```
@@ -150,7 +150,7 @@ This project incorporates open-source third-party tools:
 
 ---
 
-**Version**: 1.1.0
+**Version**: 1.1.1
 **Developed with**: Python, PyQt6, Steam API
 **Platform**: Linux only
 **License**: See LICENSE file for details

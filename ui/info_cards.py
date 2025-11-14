@@ -124,7 +124,7 @@ class AccelaInfoCard(InfoCard):
     def __init__(self):
         super().__init__(
             title=tr("InfoCards", "ACCELA"),
-            value="v1.1.0",
+            value="v1.1.1",
             icon_text="",
             color=Colors.PRIMARY,
         )
