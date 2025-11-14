@@ -32,12 +32,38 @@ cp -r utils "$BIN_DIR/"
 cp -r assets "$BIN_DIR/"
 cp -r audio "$BIN_DIR/"
 cp -r external "$BIN_DIR/"
+cp -r translations "$BIN_DIR/"
+cp -r config "$BIN_DIR/"
+cp -r slscheevo_build "$BIN_DIR/"
+cp -r Steamless "$BIN_DIR/"
+cp -r SLSsteam-Any "$BIN_DIR/"
 
 # Clean development files
 echo "Cleaning development files..."
 find "$BIN_DIR" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 find "$BIN_DIR" -name "*.pyc" -delete 2>/dev/null || true
 find "$BIN_DIR" -name ".gitignore" -delete 2>/dev/null || true
+find "$BIN_DIR" -name ".part" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*.log" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*.tmp" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*.temp" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*.acf" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*.manifest" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*.depot" -delete 2>/dev/null || true
+find "$BIN_DIR" -name ".DS_Store" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "Thumbs.db" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*.swp" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*.swo" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*~" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*.bak" -delete 2>/dev/null || true
+find "$BIN_DIR" -name "*.backup" -delete 2>/dev/null || true
+rm -rf "$BIN_DIR/api_cache" 2>/dev/null || true
+rm -rf "$BIN_DIR/data/sessions" 2>/dev/null || true
+rm -rf "$BIN_DIR/Steamless/GLCache" 2>/dev/null || true
+rm -rf "$BIN_DIR/backups" 2>/dev/null || true
+rm -rf "$BIN_DIR/tmp" 2>/dev/null || true
+rm -rf "$BIN_DIR/temp" 2>/dev/null || true
+rm -f "$BIN_DIR/slscheevo_build/data/saved_logins.encrypted" 2>/dev/null || true
 
 # Create adapted INSTALL script
 echo "Creating INSTALL script..."
@@ -165,7 +191,7 @@ chmod +x "$RELEASE_DIR/INSTALL"
 # Create release archive
 echo "Creating release archive..."
 cd release
-RELEASE_FILE="ACCELA-RELEASE-$(date +%Y%m%d).tar.gz"
+RELEASE_FILE="ACCELA-RELEASE-v1.1.0.tar.gz"
 tar -czf "$RELEASE_FILE" ACCELA-RELEASE/
 
 echo "Release created: release/$RELEASE_FILE"

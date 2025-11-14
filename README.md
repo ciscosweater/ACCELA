@@ -6,16 +6,18 @@ Graphical interface for downloading Steam depots with advanced management featur
 
 ### Linux (Recommended)
 ```bash
-# Run the installation script
-chmod +x install_and_setup.sh
-./install_and_setup.sh
+# Make the ACCELA launcher executable
+chmod +x ACCELA
+
+# Run the application (will auto-setup virtual environment)
+./ACCELA
 ```
 
-### Manual (Linux)
+### Manual Setup (Development)
 ```bash
 # 1. Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 
 # 2. Install dependencies
 pip install -r requirements.txt
@@ -48,21 +50,49 @@ python main.py
 - Download speed monitoring
 - Installed games management
 - Modern dark theme
+- Automatic virtual environment setup
+- Integrated launcher script (./ACCELA)
+- Sound effects and visual feedback
+
+## Release Process
+
+For releases, use the provided build script:
+
+```bash
+# Create a release package
+chmod +x create_release.sh
+./create_release.sh
+```
+
+The release script creates an `INSTALL` script for easy deployment to user systems. Users can then install by extracting and running:
+
+```bash
+tar -xzf ACCELA-RELEASE-v1.1.0.tar.gz
+cd ACCELA-RELEASE
+./INSTALL
+```
 
 ## File Structure
 
 ```
-ACCELA Python/
-├── main.py              # Main entry point
-├── requirements.txt     # Python dependencies
-├── install_and_setup.sh # Linux installation script
-├── core/               # Core application logic
-├── ui/                 # Interface components
-├── utils/              # Utilities and helpers
-├── config/             # Configuration files
-├── external/           # External tools
-├── Steamless/          # Steamless tool
-└── SLSsteam-Any/       # SLSSteam for variants
+ACCELA/
+├── main.py                 # Main Python entry point
+├── ACCELA                  # Application launcher script
+├── requirements.txt        # Python dependencies
+├── create_release.sh       # Release creation script
+├── core/                   # Core application logic
+├── ui/                     # Interface components
+├── utils/                  # Utilities and helpers
+├── config/                 # Configuration files
+├── external/               # External tools (DepotDownloaderMod)
+├── Steamless/              # Steamless tool for DRM unpacking
+├── SLSsteam-Any/           # SLSSteam for variants (.part, setup.sh)
+├── slscheevo_build/        # SLScheevo achievement generator
+├── assets/                 # Application assets (fonts, images, gifs)
+├── audio/                  # Sound effects and audio files
+├── translations/           # Internationalization files
+├── accela.png              # Application icon
+└── icon.png                # Desktop icon
 ```
 
 ## Important Notice
@@ -120,7 +150,7 @@ This project incorporates open-source third-party tools:
 
 ---
 
-**Version**: 1.0
+**Version**: 1.1.0
 **Developed with**: Python, PyQt6, Steam API
 **Platform**: Linux only
 **License**: See LICENSE file for details
