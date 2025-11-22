@@ -9,55 +9,55 @@ from PyQt6.QtGui import QColor
 class Colors:
     """Centralized color palette for ACCELA application"""
 
-    # Primary colors (existing theme)
-    PRIMARY = "#C06C84"  # Main accent color
-    PRIMARY_LIGHT = "#D08C9C"  # Hover states (lighter)
-    PRIMARY_DARK = "#A05C74"  # Pressed states
-    PRIMARY_VARIANT = "#B05C74"  # Alternative primary
+    # Primary colors (Steam-inspired theme)
+    PRIMARY = "#66C0F4"  # Steam blue accent
+    PRIMARY_LIGHT = "#8BD5FF"  # Hover states (lighter)
+    PRIMARY_DARK = "#4BA3CF"  # Pressed states
+    PRIMARY_VARIANT = "#5AB5E8"  # Alternative primary
 
     # Secondary colors
-    SECONDARY = "#6C84C0"  # Information accents
-    SECONDARY_LIGHT = "#8CA4D8"  # Secondary hover (lighter)
-    SECONDARY_DARK = "#5C74B0"  # Secondary pressed
+    SECONDARY = "#1B2838"  # Steam dark blue
+    SECONDARY_LIGHT = "#2A3F54"  # Secondary hover (lighter)
+    SECONDARY_DARK = "#0F1A22"  # Secondary pressed
 
     # Status colors
-    SUCCESS = "#6CC084"  # Success states
-    SUCCESS_LIGHT = "#7CD094"  # Success hover
-    SUCCESS_DARK = "#5CB074"  # Success pressed
+    SUCCESS = "#A3CF64"  # Success states (Steam green)
+    SUCCESS_LIGHT = "#B8D97F"  # Success hover
+    SUCCESS_DARK = "#8BB04A"  # Success pressed
 
-    WARNING = "#C0A06C"  # Warning states
+    WARNING = "#C0A06C"  # Warning states (keep existing)
     WARNING_LIGHT = "#D0B07C"  # Warning hover
     WARNING_DARK = "#B0905C"  # Warning pressed
 
-    ERROR = "#C06C84"  # Error states (reuse primary)
-    ERROR_LIGHT = "#D07C94"  # Error hover
-    ERROR_DARK = "#A05C74"  # Error pressed
+    ERROR = "#E84D45"  # Error states (Steam red)
+    ERROR_LIGHT = "#FF6B64"  # Error hover
+    ERROR_DARK = "#C73632"  # Error pressed
 
     # Neutral colors
-    BACKGROUND = "#000000"  # Main background (slightly darker)
-    SURFACE = "#252525"  # Card surfaces (enhanced contrast)
-    SURFACE_LIGHT = "#303030"  # Hover surfaces
-    SURFACE_DARK = "#151515"  # Dark surfaces
+    BACKGROUND = "#1B2838"  # Steam dark blue background
+    SURFACE = "#171A21"  # Steam surface color
+    SURFACE_LIGHT = "#1E2A38"  # Hover surfaces
+    SURFACE_DARK = "#0F141A"  # Dark surfaces
 
     # Border colors
-    BORDER = "#353535"  # Subtle borders (better contrast)
-    BORDER_LIGHT = "#454545"  # Light borders
-    BORDER_DARK = "#252525"  # Dark borders
+    BORDER = "#2A3F54"  # Subtle borders
+    BORDER_LIGHT = "#3B5368"  # Light borders
+    BORDER_DARK = "#1A2B3C"  # Dark borders
 
     # Text colors
-    TEXT_PRIMARY = "#E8E8E8"  # Main text (lighter for better contrast)
-    TEXT_SECONDARY = "#B0B0B0"  # Secondary text (lighter)
-    TEXT_DISABLED = "#606060"  # Disabled text
+    TEXT_PRIMARY = "#C7D5E0"  # Main text (Steam light blue-gray)
+    TEXT_SECONDARY = "#8C9AA8"  # Secondary text
+    TEXT_DISABLED = "#5C6B78"  # Disabled text
     TEXT_ON_PRIMARY = "#FFFFFF"  # Text on primary backgrounds
-    TEXT_ACCENT = "#C06C84"  # Accent text (preserving original color)
+    TEXT_ACCENT = "#66C0F4"  # Accent text (Steam blue)
 
     # Overlay colors
-    OVERLAY = "rgba(30, 30, 30, 0.8)"  # Modal overlay
-    OVERLAY_LIGHT = "rgba(30, 30, 30, 0.6)"  # Light overlay
+    OVERLAY = "rgba(27, 40, 56, 0.8)"  # Modal overlay (Steam blue)
+    OVERLAY_LIGHT = "rgba(27, 40, 56, 0.6)"  # Light overlay
 
     # Glassmorphism colors (simplified for PyQt6 compatibility)
-    GLASS_SURFACE = "#252525"
-    GLASS_BORDER = "#353535"
+    GLASS_SURFACE = "#171A21"
+    GLASS_BORDER = "#2A3F54"
 
     @staticmethod
     def get_qcolor(color_hex: str) -> QColor:
@@ -159,7 +159,7 @@ class Shadows:
     SUBTLE = "0 1px 3px rgba(0, 0, 0, 0.2)"
     MEDIUM = "0 4px 6px rgba(0, 0, 0, 0.3)"
     LARGE = "0 8px 16px rgba(0, 0, 0, 0.4)"
-    GLOW = f"0 0 20px {Colors.PRIMARY}40"
+    GLOW = f"0 0 20px {Colors.PRIMARY}40"  # Steam blue glow
 
 
 class Animations:

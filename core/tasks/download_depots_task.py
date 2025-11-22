@@ -554,7 +554,10 @@ class DownloadDepotsTask(QObject):
 
             if not success:
                 if self.steamless_integration.wine_available:
-                    self.progress.emit("Steamless processing completed with issues.")
+                    if self._should_stop:
+                        self.progress.emit("Steamless processing cancelled by user.")
+                    else:
+                        self.progress.emit("Steamless processing completed with issues.")
                 else:
                     self.progress.emit(
                         "Steamless processing skipped (Wine not available)."
@@ -585,6 +588,14 @@ class DownloadDepotsTask(QObject):
         self._should_stop = True
         self.cancellation_requested.emit()
         logger.info("Download cancellation requested")
+
+        # Also cancel Steamless processing if it's running
+        if self.steamless_integration:
+            try:
+                self.steamless_integration.request_cancellation()
+                logger.debug("Steamless cancellation requested")
+            except Exception as e:
+                logger.warning(f"Could not cancel Steamless: {e}")
 
     def cleanup(self):
         """Clean up all resources properly"""

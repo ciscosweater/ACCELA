@@ -28,8 +28,11 @@ class SteamlessIntegration(QObject):
         super().__init__()
         self.steamless_path = steamless_path or os.path.join(os.getcwd(), "Steamless")
         self.wine_available = self._check_wine_availability()
+        self.winepath_available = self._check_winepath_availability()
         self.original_process_priority = None
         self.performance_mode = performance_mode
+        self._should_stop = False  # For cancellation support
+        self._steamless_process = None  # Track Steamless process for cancellation
 
     def _check_wine_availability(self) -> bool:
         """Check if Wine is installed and available."""
@@ -47,6 +50,34 @@ class SteamlessIntegration(QObject):
             "Wine is not installed or not available. Cannot run Steamless CLI."
         )
         return False
+
+    def _check_winepath_availability(self) -> bool:
+        """Check if winepath is installed and available."""
+        try:
+            result = subprocess.run(
+                ["winepath", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                logger.info(f"Winepath detected: available")
+                return True
+        except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+            logger.error(f"Winepath not available: {e}")
+
+        logger.warning("Winepath is not available - path conversion may fail")
+        return False
+
+    def request_cancellation(self):
+        """Request cancellation of Steamless processing."""
+        self._should_stop = True
+        if self._steamless_process:
+            try:
+                self._steamless_process.terminate()
+                logger.info("Steamless process termination requested")
+            except Exception as e:
+                logger.error(f"Error requesting Steamless cancellation: {e}")
 
     def _check_disk_performance(self, path: str) -> dict:
         """Check disk performance metrics for optimization suggestions."""
@@ -386,7 +417,7 @@ class SteamlessIntegration(QObject):
 
             steamless_dir = self.steamless_path
 
-            # Prepare Wine command with optimization flags
+            # Prepare Wine command with safe optimization flags
             cmd = [
                 "wine",
                 "Steamless.CLI.exe",
@@ -397,9 +428,11 @@ class SteamlessIntegration(QObject):
                 "--recalcchecksum",  # Ensure proper PE checksum
             ]
 
-            # Add experimental features for maximum performance if enabled
+            # Only add experimental flags if explicitly enabled in performance mode
+            # Note: Removed automatic --exp flag to prevent crashes
             if self.performance_mode:
-                cmd.append("--exp")  # Use experimental features for better speed
+                # Keep only safe optimizations
+                pass
 
             self.progress.emit(f"Running Steamless (optimized): {' '.join(cmd)}")
 
@@ -417,70 +450,108 @@ class SteamlessIntegration(QObject):
                 else None,  # Process group isolation
             )
 
+            # Track process for cancellation
+            self._steamless_process = process
+
             # Monitor output
             has_drm = False
             unpacked_created = False
+            drm_patterns = [
+                r"steam\s*stub",
+                r"steamstub",
+                r"drift",
+                r"packed\s+with",
+                r"steamdrm",
+                r"steam.*drm",
+                r"steam.*protection",
+                r"variant\s*\d+",
+            ]
+            unpacked_patterns = [
+                r"unpacked\s+file\s+saved\s+to\s+disk",
+                r"unpacked\s+file\s+saved\s+as",
+                r"successfully\s+unpacked\s+file",
+                r"unpacked.*\.exe",
+            ]
 
             if process.stdout:
                 for line in iter(process.stdout.readline, ""):
+                    if self._should_stop:
+                        self.progress.emit("Cancellation requested during Steamless processing")
+                        process.terminate()
+                        try:
+                            process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                        self._steamless_process = None
+                        return False
+
                     if not line:
                         break
 
                     line = line.strip()
                     self.progress.emit(f"Steamless: {line}")
 
-                    # Check for DRM detection
-                    if (
-                        "steam stub" in line.lower()
-                        or "drift" in line.lower()
-                        or "steamstub" in line.lower()
-                        or "packed with" in line.lower()
-                    ):
-                        has_drm = True
+                    # Check for DRM detection with improved patterns
+                    for pattern in drm_patterns:
+                        if re.search(pattern, line, re.IGNORECASE):
+                            has_drm = True
+                            self.progress.emit(f"DRM detected (pattern matched): {pattern}")
+                            break
 
-                    # Check for unpacked file creation
-                    if (
-                        "unpacked file saved to disk" in line.lower()
-                        or "unpacked file saved as" in line.lower()
-                        or "successfully unpacked file" in line.lower()
-                        or ("unpacked" in line.lower() and ".exe" in line.lower())
-                    ):
-                        unpacked_created = True
+                    # Check for unpacked file creation with improved patterns
+                    for pattern in unpacked_patterns:
+                        if re.search(pattern, line, re.IGNORECASE):
+                            unpacked_created = True
+                            self.progress.emit(f"Unpacked file creation detected (pattern matched)")
+                            break
 
             process.wait()
+
+            # Clear process tracking
+            self._steamless_process = None
 
             if process.returncode != 0:
                 self.error.emit(
                     f"Steamless failed with exit code: {process.returncode}"
                 )
+                logger.error(f"Steamless process failed with exit code {process.returncode}")
                 return False
-
-            if not has_drm:
-                self.progress.emit("No Steam DRM detected in executable.")
-                self.finished.emit(True)
-                return True
 
             # Check if unpacked file was actually created (more reliable than output parsing)
             # Steamless creates: original.exe.unpacked.exe (keeps the .exe)
             unpacked_exe = f"{exe_path}.unpacked.exe"
             actual_unpacked_created = os.path.exists(unpacked_exe)
 
-            if actual_unpacked_created:
-                self.progress.emit(
-                    f"Unpacked file detected: {os.path.basename(unpacked_exe)}"
-                )
-                return self._handle_unpacked_files(exe_path)
-            else:
-                if unpacked_created:
+            # Determine success based on actual results, not just presence of DRM
+            if has_drm:
+                # DRM was detected
+                if actual_unpacked_created:
                     self.progress.emit(
-                        "Steamless output indicated unpacked file was created, but file not found."
+                        f"DRM detected and unpacked file created successfully: {os.path.basename(unpacked_exe)}"
                     )
+                    return self._handle_unpacked_files(exe_path)
                 else:
-                    self.progress.emit(
-                        "Steamless completed but no unpacked file was created."
+                    # DRM detected but unpacked file not created - this is a failure
+                    self.error.emit(
+                        "Steamless reported DRM but failed to create unpacked file. "
+                        "This may indicate the executable couldn't be processed."
                     )
-                self.finished.emit(True)
-                return True
+                    self.finished.emit(False)
+                    return False
+            else:
+                # No DRM detected
+                self.progress.emit("No Steam DRM detected in executable.")
+                if actual_unpacked_created:
+                    # Unpacked file exists even without DRM detection - this is unusual but not necessarily an error
+                    self.progress.emit(
+                        "Warning: Unpacked file exists but no DRM was detected. This may be a false positive or the file was previously processed."
+                    )
+                    return self._handle_unpacked_files(exe_path)
+                else:
+                    # No DRM and no unpacked file - this is expected behavior
+                    self.progress.emit("Executable does not contain removable Steam DRM.")
+                    self.finished.emit(True)
+                    return True
 
         except Exception as e:
             logger.error(f"Error running Steamless: {e}", exc_info=True)
@@ -493,6 +564,11 @@ class SteamlessIntegration(QObject):
     def _convert_to_windows_path(self, linux_path: str) -> Optional[str]:
         """Convert Linux path to Windows path format for Wine."""
         try:
+            # Check if winepath is available
+            if not self.winepath_available:
+                logger.warning("Winepath not available, using manual conversion")
+                return self._manual_path_conversion(linux_path)
+
             # Use winepath to convert the path
             result = subprocess.run(
                 ["winepath", "-w", linux_path],
@@ -506,11 +582,38 @@ class SteamlessIntegration(QObject):
                 logger.debug(f"Converted path: {linux_path} -> {windows_path}")
                 return windows_path
             else:
-                logger.error(f"Failed to convert path: {result.stderr}")
-                return None
+                logger.error(f"Failed to convert path with winepath: {result.stderr}")
+                logger.info("Falling back to manual path conversion")
+                return self._manual_path_conversion(linux_path)
 
         except Exception as e:
-            logger.error(f"Error converting path: {e}")
+            logger.error(f"Error converting path with winepath: {e}")
+            logger.info("Falling back to manual path conversion")
+            return self._manual_path_conversion(linux_path)
+
+    def _manual_path_conversion(self, linux_path: str) -> Optional[str]:
+        """Manual fallback conversion when winepath is not available."""
+        try:
+            # Simple manual conversion: /path/to/file -> Z:\path\to\file
+            # Remove leading slash and convert to Windows separators
+            if linux_path.startswith('/'):
+                # Get absolute path
+                abs_path = os.path.abspath(linux_path)
+                # Remove leading slash and convert
+                windows_path = abs_path[1:] if abs_path.startswith('/') else abs_path
+                # Convert to Windows path separators
+                windows_path = windows_path.replace('/', '\\')
+                # Add drive letter
+                windows_path = f"Z:\\{windows_path}"
+                logger.debug(f"Manual path conversion: {linux_path} -> {windows_path}")
+                return windows_path
+            else:
+                # Already a relative path, just convert separators
+                windows_path = linux_path.replace('/', '\\')
+                logger.debug(f"Simple path conversion: {linux_path} -> {windows_path}")
+                return windows_path
+        except Exception as e:
+            logger.error(f"Error in manual path conversion: {e}")
             return None
 
     def _cleanup_temp_files(self, directory: str):
@@ -545,34 +648,103 @@ class SteamlessIntegration(QObject):
             unpacked_exe = f"{original_exe}.unpacked.exe"
             original_backup = f"{original_exe}.original.exe"
 
-            if os.path.exists(unpacked_exe):
-                # Rename original to .original
-                if os.path.exists(original_backup):
-                    logger.warning(f"Backup file already exists: {original_backup}")
-                    os.remove(original_backup)
+            # Validate files before proceeding
+            if not os.path.exists(unpacked_exe):
+                self.error.emit(f"Unpacked file not found: {unpacked_exe}")
+                self.finished.emit(False)
+                return False
 
+            if not os.path.exists(original_exe):
+                self.error.emit(f"Original executable not found: {original_exe}")
+                self.finished.emit(False)
+                return False
+
+            # Validate file sizes to detect corrupted files
+            try:
+                original_size = os.path.getsize(original_exe)
+                unpacked_size = os.path.getsize(unpacked_exe)
+
+                # Check if unpacked file is unreasonably small (likely failed extraction)
+                if unpacked_size < 10000:  # Less than 10KB
+                    self.error.emit(
+                        f"Unpacked file too small ({unpacked_size} bytes, expected > 10KB). "
+                        f"File may be corrupted or extraction failed."
+                    )
+                    logger.error(f"Unpacked file size check failed: {unpacked_size} bytes")
+                    self.finished.emit(False)
+                    return False
+
+                # Check if unpacked file is significantly smaller than original (may indicate failure)
+                # Allow for some compression, but not dramatic reductions
+                if unpacked_size < (original_size * 0.01):  # Less than 1% of original
+                    self.warning_msg = (
+                        f"Warning: Unpacked file ({unpacked_size:,} bytes) is much smaller than "
+                        f"original ({original_size:,} bytes). This may indicate partial or failed extraction."
+                    )
+                    self.progress.emit(self.warning_msg)
+                    logger.warning(self.warning_msg)
+
+            except OSError as e:
+                logger.warning(f"Could not check file sizes: {e}")
+                # Continue anyway, file size check is advisory
+
+            # Check disk space before renaming
+            try:
+                disk_usage = shutil.disk_usage(os.path.dirname(original_exe))
+                free_space_mb = disk_usage.free / (1024 * 1024)
+                if free_space_mb < 100:  # Less than 100MB free
+                    logger.warning(f"Low disk space: {free_space_mb:.2f}MB free")
+                    self.progress.emit(
+                        f"Warning: Low disk space ({free_space_mb:.2f}MB free). Renaming may fail."
+                    )
+            except Exception as e:
+                logger.warning(f"Could not check disk space: {e}")
+
+            # Proceed with renaming
+            if os.path.exists(original_backup):
+                logger.warning(f"Backup file already exists: {original_backup}")
+                self.progress.emit(f"Removing existing backup: {os.path.basename(original_backup)}")
+                os.remove(original_backup)
+
+            # Rename original to .original
+            try:
                 shutil.move(original_exe, original_backup)
                 self.progress.emit(
                     f"Renamed original: {os.path.basename(original_exe)} -> {os.path.basename(original_backup)}"
                 )
+            except Exception as e:
+                self.error.emit(f"Failed to rename original file: {e}")
+                logger.error(f"Error renaming original file: {e}", exc_info=True)
+                self.finished.emit(False)
+                return False
 
-                # Rename unpacked to original name
+            # Rename unpacked to original name
+            try:
                 shutil.move(unpacked_exe, original_exe)
                 self.progress.emit(
                     f"Renamed unpacked: {os.path.basename(unpacked_exe)} -> {os.path.basename(original_exe)}"
                 )
+            except Exception as e:
+                self.error.emit(f"Failed to rename unpacked file: {e}")
+                logger.error(f"Error renaming unpacked file: {e}", exc_info=True)
 
-                self.progress.emit("Steam DRM successfully removed!")
-                self.finished.emit(True)
-                return True
-            else:
-                self.progress.emit(
-                    "Unpacked file not found. DRM may not have been present or removable."
-                )
-                self.finished.emit(True)
-                return True
+                # Try to restore original file
+                try:
+                    if os.path.exists(original_backup):
+                        shutil.move(original_backup, original_exe)
+                        self.progress.emit("Restored original file after rename failure")
+                except Exception as restore_error:
+                    logger.error(f"Failed to restore original file: {restore_error}")
+
+                self.finished.emit(False)
+                return False
+
+            self.progress.emit("Steam DRM successfully removed!")
+            self.finished.emit(True)
+            return True
 
         except Exception as e:
             logger.error(f"Error handling unpacked files: {e}", exc_info=True)
-            self.error.emit(f"Error handling unpacked files: {str(e)}")
+            self.error.emit(f"Error handling unpacked files: {e}")
+            self.finished.emit(False)
             return False
