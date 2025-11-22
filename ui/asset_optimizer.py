@@ -4,7 +4,7 @@ import logging
 import os
 
 from PyQt6.QtCore import QObject, Qt, QTimer
-from PyQt6.QtGui import QMovie, QPixmap
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QLabel
 
 logger = get_internationalized_logger()
@@ -50,22 +50,8 @@ class AssetManager(QObject):
             return QPixmap()
 
     def get_optimized_movie(self, file_path, size=None):
-        """Get cached or create optimized movie."""
-        cache_key = self._get_cache_key(file_path, size)
-
-        if cache_key in self._cache:
-            return self._cache[cache_key]
-
-        try:
-            movie = QMovie(file_path)
-            if size:
-                movie.setScaledSize(size)
-
-            self._cache[cache_key] = movie
-            return movie
-        except Exception as e:
-            logger.warning(f"Failed to load movie {file_path}: {e}")
-            return QMovie()
+        """Get cached or create optimized movie (deprecated, use pixmap)."""
+        return self.get_optimized_pixmap(file_path, size)
 
     def _get_cache_key(self, file_path, size=None):
         """Generate cache key for asset."""
@@ -78,10 +64,7 @@ class AssetManager(QObject):
         """Preload commonly used assets."""
         for asset_path in asset_list:
             if os.path.exists(asset_path):
-                if asset_path.endswith(".gif"):
-                    self.get_optimized_movie(asset_path)
-                else:
-                    self.get_optimized_pixmap(asset_path)
+                self.get_optimized_pixmap(asset_path)
 
     def clear_cache(self):
         """Clear asset cache."""
@@ -110,9 +93,8 @@ class OptimizedLabel(QLabel):
         self._lazy_load_timer.start(100)  # 100ms delay for lazy loading
 
     def setOptimizedMovie(self, file_path, size=None):
-        """Set optimized movie with lazy loading."""
-        self._pending_asset = (file_path, size, "movie")
-        self._lazy_load_timer.start(100)
+        """Set optimized movie with lazy loading (deprecated, use pixmap)."""
+        self.setOptimizedPixmap(file_path, size)
 
     def _load_asset(self):
         """Load pending asset."""
@@ -121,13 +103,8 @@ class OptimizedLabel(QLabel):
 
         file_path, size, asset_type = self._pending_asset
 
-        if asset_type == "pixmap":
-            pixmap = self.asset_manager.get_optimized_pixmap(file_path, size)
-            self.setPixmap(pixmap)
-        elif asset_type == "movie":
-            movie = self.asset_manager.get_optimized_movie(file_path, size)
-            self.setMovie(movie)
-            movie.start()
+        pixmap = self.asset_manager.get_optimized_pixmap(file_path, size)
+        self.setPixmap(pixmap)
 
         self._pending_asset = None
 
@@ -201,19 +178,17 @@ class AssetOptimizer:
 
     @staticmethod
     def analyze_gif_performance(file_path):
-        """Analyze GIF performance characteristics."""
+        """Analyze GIF performance characteristics (deprecated, now uses static images)."""
         try:
-            movie = QMovie(file_path)
-            if not movie.isValid():
+            pixmap = QPixmap(file_path)
+            if pixmap.isNull():
                 return None
 
-            frame_count = movie.frameCount()
-            speed = movie.speed()
-
             return {
-                "frame_count": frame_count,
-                "speed": speed,
-                "estimated_duration": frame_count / (speed / 1000) if speed > 0 else 0,
+                "frame_count": 1,
+                "speed": 100,
+                "estimated_duration": 0,
+                "note": "Now using static image instead of GIF",
             }
         except Exception as e:
             logger.warning(f"Failed to analyze GIF {file_path}: {e}")
@@ -230,10 +205,5 @@ class AssetOptimizer:
 
         if info["size_mb"] > 1.0:
             suggestions.append("Consider compressing this large asset")
-
-        if file_path.endswith(".gif"):
-            perf = AssetOptimizer.analyze_gif_performance(file_path)
-            if perf and perf["frame_count"] > 30:
-                suggestions.append("High frame count - consider reducing frames")
 
         return suggestions if suggestions else ["Asset appears optimized"]

@@ -2,13 +2,12 @@
 from utils.logger import get_internationalized_logger
 import logging
 import os
-import random
 import re
 import sys
 from utils.i18n import tr
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QMovie
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -71,28 +70,14 @@ class ScaledLabel(QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setMinimumSize(1, 1)
-        self._movie = None
 
     def setMovie(self, movie):
-        if self._movie:
-            self._movie.frameChanged.disconnect(self.on_frame_changed)
-        self._movie = movie
-        if self._movie:
-            self._movie.frameChanged.connect(self.on_frame_changed)
-
-    def on_frame_changed(self, frame_number=None):
-        if self.size().width() > 0 and self.size().height() > 0 and self._movie:
-            pixmap = self._movie.currentPixmap()
-            scaled_pixmap = pixmap.scaled(
-                self.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            super().setPixmap(scaled_pixmap)
+        """Deprecated: use setPixmap instead"""
+        if movie and hasattr(movie, 'currentPixmap'):
+            pixmap = movie.currentPixmap()
+            self.setPixmap(pixmap)
 
     def resizeEvent(self, a0):
-        if self._movie:
-            self.on_frame_changed(0)
         super(ScaledLabel, self).resizeEvent(a0)
 
 
@@ -117,9 +102,8 @@ class MainWindow(QMainWindow):
         self.settings = get_settings()
         self.game_data = None
         self.speed_monitor_task = None
-        self.main_movie = QMovie("assets/gifs/main.gif")
-        self.download_gifs = [f"assets/gifs/downloading{i}.gif" for i in range(1, 12)]
-        self.current_movie = None
+        self.main_pixmap = QPixmap("bifrost.png")
+        self.current_pixmap = None
         self.depot_dialog = None
         self.current_dest_path = None
         self.slssteam_mode_was_active = False
@@ -225,10 +209,9 @@ class MainWindow(QMainWindow):
             }}
         """)
 
-        if self.main_movie.isValid():
-            self.drop_label.setMovie(self.main_movie)
-            self.main_movie.start()
-            self.current_movie = self.main_movie
+        if not self.main_pixmap.isNull():
+            self.drop_label.setPixmap(self.main_pixmap)
+            self.current_pixmap = self.main_pixmap
         else:
             self.drop_label.setText(tr("MainWindow", "Drag and Drop ZIP File Here"))
 
@@ -314,9 +297,8 @@ class MainWindow(QMainWindow):
             }}
         """)
 
-        if self.main_movie.isValid():
-            self.download_drop_label.setMovie(self.main_movie)
-            # Don't start movie here, it's already running from normal mode
+        if not self.main_pixmap.isNull():
+            self.download_drop_label.setPixmap(self.main_pixmap)
 
         download_drop_zone_layout.addWidget(self.download_drop_label, 10)
 
@@ -1541,13 +1523,10 @@ class MainWindow(QMainWindow):
             # Load game header image asynchronously
             self._load_game_image()
 
-        # Start download GIF
-        random_gif_path = random.choice(self.download_gifs)
-        download_movie = QMovie(random_gif_path)
-        if download_movie.isValid():
-            self.current_movie = download_movie
-            self.download_drop_label.setMovie(self.current_movie)
-            self.current_movie.start()
+        # Start download with bifrost image
+        if not self.main_pixmap.isNull():
+            self.download_drop_label.setPixmap(self.main_pixmap)
+            self.current_pixmap = self.main_pixmap
 
         # Configurar UI para download com widget minimalista
 
@@ -1792,12 +1771,9 @@ class MainWindow(QMainWindow):
         self._stop_speed_monitor()
 
     def _reset_ui_state(self):
-        if self.current_movie:
-            self.current_movie.stop()
-        if self.main_movie.isValid():
-            self.drop_label.setMovie(self.main_movie)
-            self.main_movie.start()
-            self.current_movie = self.main_movie
+        if not self.main_pixmap.isNull():
+            self.drop_label.setPixmap(self.main_pixmap)
+            self.current_pixmap = self.main_pixmap
 
         self.drop_text_label.setVisible(True)
         self.drop_text_label.setText(tr("MainWindow", "Drag and Drop Zip here"))
