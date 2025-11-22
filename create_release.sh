@@ -17,9 +17,7 @@ mkdir -p "$BIN_DIR"
 echo "Copying essential files..."
 cp main.py "$BIN_DIR/"
 cp Bifrost "$BIN_DIR/"
-cp playsound.py "$BIN_DIR/"
 cp requirements.txt "$BIN_DIR/"
-cp icon.png "$BIN_DIR/"
 cp bifrost.png "$BIN_DIR/"
 cp LICENSE "$BIN_DIR/"
 cp README.md "$BIN_DIR/"
@@ -30,7 +28,6 @@ cp -r core "$BIN_DIR/"
 cp -r ui "$BIN_DIR/"
 cp -r utils "$BIN_DIR/"
 cp -r assets "$BIN_DIR/"
-cp -r audio "$BIN_DIR/"
 cp -r external "$BIN_DIR/"
 cp -r translations "$BIN_DIR/"
 cp -r config "$BIN_DIR/"
@@ -142,10 +139,6 @@ pip install --upgrade pip
 pip install -r "$BIN_DIR/requirements.txt"
 
 notify-send "ＥＮＴＥＲＩＮＧ   ＴＨＥ   ＷＩＲＥＤ"
-python3 "$BIN_DIR/playsound.py" "$BIN_DIR/audio/sfx/etw.wav" & sleep 5
-
-notify-send "ＬＥＴＳ   ＡＬＬ   ＬＯＶＥ   ＬＡＩＮ"
-python3 "$BIN_DIR/playsound.py" "$BIN_DIR/audio/sfx/lal.wav" &
 
 deactivate
 echo "Dependencies installed."

@@ -70,6 +70,7 @@ class ScaledLabel(QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setMinimumSize(1, 1)
+        self._original_pixmap = None
 
     def setMovie(self, movie):
         """Deprecated: use setPixmap instead"""
@@ -77,8 +78,39 @@ class ScaledLabel(QLabel):
             pixmap = movie.currentPixmap()
             self.setPixmap(pixmap)
 
+    def setPixmap(self, pixmap):
+        """Override setPixmap to store original and scale properly"""
+        if pixmap and not pixmap.isNull():
+            # Store the original pixmap
+            self._original_pixmap = pixmap
+            # Scale and display
+            self._update_scaled_pixmap()
+        else:
+            super().setPixmap(pixmap)
+
+    def _update_scaled_pixmap(self):
+        """Update the displayed pixmap with proper scaling while maintaining aspect ratio"""
+        if self._original_pixmap and not self._original_pixmap.isNull():
+            # Get the available size (minus margins)
+            available_width = max(1, self.width() - 20)  # 10px margin on each side
+            available_height = max(1, self.height() - 20)
+
+            # Scale the pixmap to fit while maintaining aspect ratio
+            scaled_pixmap = self._original_pixmap.scaled(
+                available_width,
+                available_height,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+
+            # Display the scaled pixmap
+            super().setPixmap(scaled_pixmap)
+
     def resizeEvent(self, a0):
         super(ScaledLabel, self).resizeEvent(a0)
+        # Update scaled pixmap on resize
+        if self._original_pixmap:
+            self._update_scaled_pixmap()
 
 
 class ScaledFontLabel(QLabel):
