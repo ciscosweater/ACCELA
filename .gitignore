@@ -31,6 +31,7 @@ ENV/
 .idea/
 *.swp
 *.swo
+.ruff_cache/
 
 # OS
 .DS_Store
@@ -51,12 +52,14 @@ temp/
 
 # API Cache and session data
 api_cache/
+cache/
 data/sessions/download_sessions.json
 
 # Steam game files and downloads
 *.acf
 *.manifest
 *.depot
+depots/.DepotDownloader/
 
 # Development documentation
 CLAUDE.md
