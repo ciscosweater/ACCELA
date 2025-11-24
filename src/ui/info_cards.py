@@ -124,7 +124,7 @@ class BifrostInfoCard(InfoCard):
     def __init__(self):
         super().__init__(
             title=tr("InfoCards", "Bifrost"),
-            value="v1.1.1",
+            value="v1.2.0",
             icon_text="",
             color=Colors.PRIMARY,
         )

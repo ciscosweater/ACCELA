@@ -176,7 +176,7 @@ chmod +x "$RELEASE_DIR/INSTALL"
 # Create release archive
 echo "Creating release archive..."
 cd release
-RELEASE_FILE="Bifrost-RELEASE-v1.1.1.tar.gz"
+RELEASE_FILE="Bifrost-RELEASE-v1.2.0.tar.gz"
 tar -czf "$RELEASE_FILE" Bifrost-RELEASE/
 
 echo "Release created: release/$RELEASE_FILE"
