@@ -238,6 +238,10 @@ class GameManager:
         """
         Scans all Steam libraries for Bifrost games.
 
+        Uses two detection methods:
+        1. ACF files (original method) - for games with appmanifest_*.acf files
+        2. .DepotDownloader folders (new) - for games without ACF files but with .DepotDownloader subfolder
+
         Args:
             async_size_calculation: If True, calculates sizes asynchronously for better performance
             force_refresh: If True, bypasses cache and forces a fresh scan
@@ -261,6 +265,47 @@ class GameManager:
         libraries = steam_helpers.get_steam_libraries()
 
         logger.debug(f"Scanning {len(libraries)} Steam libraries for Bifrost games")
+
+        # Method 1: Scan for games using ACF files (original method)
+        acf_games = GameManager._scan_games_from_acf_files(
+            libraries, async_size_calculation
+        )
+        games.extend(acf_games)
+
+        # Method 2: Scan for games with .DepotDownloader folders but no ACF files
+        depotdownloader_games = GameManager._scan_depotdownloader_games(libraries)
+
+        # Merge results, avoiding duplicates based on appid
+        for dd_game in depotdownloader_games:
+            # Check if this game is already in the list (from ACF scan)
+            if not any(g.get("appid") == dd_game.get("appid") for g in games):
+                games.append(dd_game)
+
+        logger.debug(
+            f"Found {len(games)} Bifrost games "
+            f"({len(acf_games)} from ACF files, {len(depotdownloader_games)} from .DepotDownloader folders)"
+        )
+
+        # Cache the result
+        _GAMES_SCAN_CACHE[cache_key] = (games, current_time)
+
+        return games
+
+    @staticmethod
+    def _scan_games_from_acf_files(
+        libraries: List[str], async_size_calculation: bool = True
+    ) -> List[Dict]:
+        """
+        Scan for Bifrost games using ACF files (original method).
+
+        Args:
+            libraries: List of Steam library paths
+            async_size_calculation: If True, calculates sizes asynchronously
+
+        Returns:
+            List of dictionaries with information about found games
+        """
+        games = []
 
         for library_path in libraries:
             steamapps_path = os.path.join(library_path, "steamapps")
@@ -295,6 +340,10 @@ class GameManager:
                         # Add library_path and acf_path
                         game_info["library_path"] = library_path
                         game_info["acf_path"] = acf_file
+
+                        # Mark as detected from ACF
+                        game_info["has_acf"] = True
+                        game_info["source"] = "acf"
 
                         # Calculate game directory size
                         installdir = game_info.get("installdir", "")
@@ -334,11 +383,78 @@ class GameManager:
                     logger.error(f"Error processing ACF file {acf_file}: {e}")
                     continue
 
-        logger.debug(f"Found {len(games)} Bifrost games")
+        return games
 
-        # Cache the result
-        _GAMES_SCAN_CACHE[cache_key] = (games, current_time)
+    @staticmethod
+    def _scan_depotdownloader_games(libraries: List[str]) -> List[Dict]:
+        """
+        Scans for games with .DepotDownloader folders but no ACF files.
 
+        Args:
+            libraries: List of Steam library paths
+
+        Returns:
+            List of dictionaries with information about found games
+        """
+        games = []
+
+        logger.debug("Scanning for games with .DepotDownloader folders")
+
+        for library_path in libraries:
+            steamapps_path = os.path.join(library_path, "steamapps")
+            common_path = os.path.join(steamapps_path, "common")
+
+            if not os.path.isdir(common_path):
+                logger.debug(f"common directory not found in {library_path}")
+                continue
+
+            try:
+                with os.scandir(common_path) as entries:
+                    for entry in entries:
+                        if not entry.is_dir():
+                            continue
+
+                        # Check if this directory has a .DepotDownloader subfolder
+                        depotdownloader_dir = os.path.join(entry.path, ".DepotDownloader")
+
+                        if os.path.isdir(depotdownloader_dir):
+                            # Try to find the appid by searching ACF files
+                            appid = GameManager._find_appid_by_installdir(libraries, entry.name)
+
+                            if appid:
+                                # Create game info dictionary
+                                game_info = {
+                                    "appid": appid,
+                                    "name": entry.name,
+                                    "display_name": entry.name,
+                                    "installdir": entry.name,
+                                    "library_path": library_path,
+                                    "acf_path": None,
+                                    "game_dir": entry.path,
+                                    "size_formatted": "0 B",
+                                    "has_acf": False,
+                                    "source": "depotdownloader"
+                                }
+
+                                # Calculate size
+                                if os.path.exists(entry.path):
+                                    size_bytes = DirectorySizeWorker._calculate_directory_size_optimized(
+                                        entry.path
+                                    )
+                                    game_info["size_formatted"] = GameManager._format_size(
+                                        size_bytes
+                                    )
+
+                                games.append(game_info)
+                                logger.debug(
+                                    f"Found DepotDownloader game: {entry.name} (APPID: {appid})"
+                                )
+
+            except (OSError, PermissionError) as e:
+                logger.error(f"Error scanning directory {common_path}: {e}")
+                continue
+
+        logger.debug(f"Found {len(games)} games with .DepotDownloader folders")
         return games
 
     @staticmethod
@@ -561,6 +677,49 @@ class GameManager:
             return False
 
     @staticmethod
+    def _find_appid_by_installdir(libraries: List[str], installdir: str) -> Optional[str]:
+        """
+        Search ACF files to find appid matching the installdir.
+
+        Args:
+            libraries: List of Steam library paths
+            installdir: Installation directory name to search for
+
+        Returns:
+            Appid string if found, None otherwise
+        """
+        for library_path in libraries:
+            steamapps_path = os.path.join(library_path, "steamapps")
+            if not os.path.isdir(steamapps_path):
+                continue
+
+            try:
+                acf_files = GameManager._find_acf_files(steamapps_path)
+
+                for acf_file in acf_files:
+                    try:
+                        game_info = GameManager._parse_acf_file(acf_file)
+                        if game_info and game_info.get("installdir") == installdir:
+                            # Extract appid from filename
+                            acf_filename = os.path.basename(acf_file)
+                            if acf_filename.startswith("appmanifest_") and acf_filename.endswith(".acf"):
+                                appid = acf_filename[len("appmanifest_") : -len(".acf")]
+                                logger.debug(
+                                    f"Found appid {appid} for installdir '{installdir}' in {acf_file}"
+                                )
+                                return appid
+                    except Exception as e:
+                        logger.debug(f"Error checking ACF {acf_file}: {e}")
+                        continue
+
+            except (OSError, PermissionError) as e:
+                logger.debug(f"Error accessing steamapps in {library_path}: {e}")
+                continue
+
+        logger.debug(f"Appid not found for installdir '{installdir}'")
+        return None
+
+    @staticmethod
     def delete_game(
         game_info: Dict, delete_compatdata: bool = False
     ) -> Tuple[bool, str]:
@@ -648,10 +807,17 @@ class GameManager:
                 return False, f"Path validation failed: {str(e)}"
 
             # Confirm it's really an Bifrost game before deleting
-            if acf_path and os.path.exists(acf_path):
+            has_acf = game_info.get("has_acf", True)
+            if has_acf and acf_path and os.path.exists(acf_path):
+                # For games with ACF files, validate through ACF
                 parsed_info = GameManager._parse_acf_file(acf_path)
                 if not parsed_info or not GameManager._is_bifrost_game(parsed_info):
                     return False, "Security check: Game is not a valid Bifrost game"
+            elif not has_acf:
+                # For games without ACF files, validate through .DepotDownloader folder
+                depotdownloader_dir = os.path.join(game_dir, ".DepotDownloader")
+                if not os.path.exists(depotdownloader_dir):
+                    return False, "Security check: .DepotDownloader folder not found"
 
             deleted_items = []
             errors = []
@@ -671,22 +837,25 @@ class GameManager:
             elif game_dir:
                 logger.warning(f"Game directory not found: {game_dir}")
 
-            # Delete ACF file
-            if acf_path and os.path.exists(acf_path):
-                try:
-                    # Validate it's a valid ACF file
-                    if not acf_path.endswith(".acf") or not os.path.basename(
-                        acf_path
-                    ).startswith("appmanifest_"):
-                        errors.append("Invalid ACF file format")
-                    else:
-                        os.remove(acf_path)
-                        deleted_items.append(f"ACF file: {acf_path}")
-                        logger.info(f"Deleted ACF file: {acf_path}")
-                except Exception as e:
-                    errors.append(f"Failed to delete ACF file: {e}")
-            elif acf_path:
-                logger.warning(f"ACF file not found: {acf_path}")
+            # Delete ACF file (only for games with ACF files)
+            if has_acf:
+                if acf_path and os.path.exists(acf_path):
+                    try:
+                        # Validate it's a valid ACF file
+                        if not acf_path.endswith(".acf") or not os.path.basename(
+                            acf_path
+                        ).startswith("appmanifest_"):
+                            errors.append("Invalid ACF file format")
+                        else:
+                            os.remove(acf_path)
+                            deleted_items.append(f"ACF file: {acf_path}")
+                            logger.info(f"Deleted ACF file: {acf_path}")
+                    except Exception as e:
+                        errors.append(f"Failed to delete ACF file: {e}")
+                elif acf_path:
+                    logger.warning(f"ACF file not found: {acf_path}")
+            else:
+                logger.debug(f"Skipping ACF deletion for game without ACF file (APPID: {app_id})")
 
             # Delete compatdata if requested (with enhanced validation)
             if delete_compatdata:
@@ -773,25 +942,35 @@ class GameManager:
         """
         errors = []
 
-        # Validar campos obrigatórios
-        required_fields = ["appid", "name", "installdir", "library_path", "acf_path"]
+        # Validate required fields (acf_path is optional for DepotDownloader games)
+        required_fields = ["appid", "name", "installdir", "library_path"]
         for field in required_fields:
             if not game_info.get(field):
                 errors.append(f"Missing required field: {field}")
 
-        # Validar APPID
+        # Validate APPID
         appid = game_info.get("appid")
         if appid and not appid.isdigit():
             errors.append(f"Invalid APPID format: {appid}")
 
-        # Validar paths
+        # Validate paths
         library_path = game_info.get("library_path")
         if library_path and not os.path.exists(library_path):
             errors.append(f"Library path does not exist: {library_path}")
 
-        acf_path = game_info.get("acf_path")
-        if acf_path and not os.path.exists(acf_path):
-            errors.append(f"ACF file does not exist: {acf_path}")
+        # Validate ACF path (only for games with ACF files)
+        has_acf = game_info.get("has_acf", True)
+        if has_acf:
+            acf_path = game_info.get("acf_path")
+            if acf_path and not os.path.exists(acf_path):
+                errors.append(f"ACF file does not exist: {acf_path}")
+        else:
+            # For games without ACF, validate .DepotDownloader folder exists
+            game_dir = game_info.get("game_dir")
+            if game_dir:
+                depotdownloader_dir = os.path.join(game_dir, ".DepotDownloader")
+                if not os.path.exists(depotdownloader_dir):
+                    errors.append(f".DepotDownloader folder not found in {game_dir}")
 
         game_dir = game_info.get("game_dir")
         if game_dir and not os.path.exists(game_dir):

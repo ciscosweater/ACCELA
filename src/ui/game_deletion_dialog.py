@@ -649,14 +649,33 @@ class GameDeletionDialog(QDialog):
             self.games_table.setCellWidget(row, 0, checkbox_container)
 
             # Game name (use display_name)
-            name_item = QTableWidgetItem(game["display_name"])
+            game_name = game["display_name"]
+
+            # Add visual indicator for games detected via .DepotDownloader
+            source = game.get("source", "acf")
+            if source == "depotdownloader":
+                game_name = f"{game_name} [.DepotDownloader]"
+
+            name_item = QTableWidgetItem(game_name)
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+
+            # Enhanced tooltip with detection source
+            acf_info = ""
+            if not game.get("has_acf", True):
+                acf_info = "\nSource: Detected via .DepotDownloader folder (no ACF file)"
+
             name_item.setToolTip(
-                f"APPID: {game['appid']}\n{game['name']}\nDirectory: {game.get('installdir', 'N/A')}"
-            )  # Tooltip mais completo
+                f"APPID: {game['appid']}\n{game['name']}\nDirectory: {game.get('installdir', 'N/A')}{acf_info}"
+            )
             name_item.setTextAlignment(
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
             )
+
+            # Add visual styling for DepotDownloader games
+            if source == "depotdownloader":
+                # Use a different color to indicate these are special
+                name_item.setForeground(theme.colors.get_qcolor(theme.colors.TEXT_ACCENT))
+
             self.games_table.setItem(row, 1, name_item)
 
             # Size (simplificado)
@@ -733,6 +752,10 @@ class GameDeletionDialog(QDialog):
             game_dir = game.get("game_dir", "")
             game_dir_exists = os.path.exists(game_dir) if game_dir else False
 
+            # Handle acf_path which might be None for DepotDownloader games
+            acf_path = game.get("acf_path")
+            acf_display = os.path.basename(acf_path) if acf_path else tr("GameDeletionDialog", "No ACF file")
+
             details = tr(
                 "GameDeletionDialog",
                 """<b>Display Name:</b> {0}<br>
@@ -750,7 +773,7 @@ class GameDeletionDialog(QDialog):
 <b>Save Data (compatdata):</b><br>
 • Path: compatdata/{9}/<br>
 • Action: Will be deleted if checked<br>
-• {tr('GameDeletionDialog', 'Tip: Uncheck to preserve save games')}""",
+• {10}""",
             ).format(
                 game.get("display_name", "N/A"),
                 game.get("name", "N/A"),
@@ -759,9 +782,10 @@ class GameDeletionDialog(QDialog):
                 game.get("size_formatted", "N/A"),
                 os.path.basename(game.get("library_path", "N/A")),
                 "Exists" if game_dir_exists else "Not found",
-                os.path.basename(game.get("acf_path", "N/A")),
+                acf_display,
                 game.get("installdir", "N/A"),
                 game.get("appid", "N/A"),
+                tr("GameDeletionDialog", "Tip: Uncheck to preserve save games"),
             )
 
             self.game_info_text.setText(details)
