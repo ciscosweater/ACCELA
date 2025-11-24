@@ -3,16 +3,16 @@ Version management for Bifrost.
 This module provides version information for the application.
 """
 
-__version__ = "1.1.1"
-__version_info__ = (1, 1, 1)
+__version__ = "1.2.0"
+__version_info__ = (1, 2, 0)
 __author__ = "Bifrost Team"
 __email__ = ""
 __description__ = "A PyQt6 GUI application for downloading Steam depots with advanced management features"
 
 # Version constants for release management
 VERSION_MAJOR = 1
-VERSION_MINOR = 1
-VERSION_PATCH = 1
+VERSION_MINOR = 2
+VERSION_PATCH = 0
 
 # Development status: 'alpha', 'beta', 'rc', or 'stable'
 STATUS = 'stable'

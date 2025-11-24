@@ -15,10 +15,8 @@ mkdir -p "$BIN_DIR"
 
 # Copy essential files
 echo "Copying essential files..."
-cp main.py "$BIN_DIR/"
 cp Bifrost "$BIN_DIR/"
 cp requirements.txt "$BIN_DIR/"
-cp assets/images/bifrost.png "$BIN_DIR/bifrost.png"
 cp LICENSE "$BIN_DIR/"
 cp README.md "$BIN_DIR/"
 cp CREDITS.md "$BIN_DIR/"
@@ -27,16 +25,7 @@ cp SYSTEM_REQUIREMENTS.md "$BIN_DIR/"
 
 # Copy essential directories
 echo "Copying directories..."
-cp -r core "$BIN_DIR/"
-cp -r ui "$BIN_DIR/"
-cp -r utils "$BIN_DIR/"
-cp -r assets "$BIN_DIR/"
-cp -r external "$BIN_DIR/"
-cp -r translations "$BIN_DIR/"
-cp -r config "$BIN_DIR/"
-cp -r slscheevo_build "$BIN_DIR/"
-cp -r Steamless "$BIN_DIR/"
-cp -r SLSsteam-Any "$BIN_DIR/"
+cp -r src "$BIN_DIR/"
 
 # Clean development files
 echo "Cleaning development files..."
@@ -187,7 +176,7 @@ chmod +x "$RELEASE_DIR/INSTALL"
 # Create release archive
 echo "Creating release archive..."
 cd release
-RELEASE_FILE="Bifrost-RELEASE-v1.1.1.tar.gz"
+RELEASE_FILE="Bifrost-RELEASE-v1.2.0.tar.gz"
 tar -czf "$RELEASE_FILE" Bifrost-RELEASE/
 
 echo "Release created: release/$RELEASE_FILE"

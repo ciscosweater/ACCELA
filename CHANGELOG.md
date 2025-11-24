@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Future changes will be documented here
 
-## [1.1.1] - 2025-11-24
+## [1.2.0] - 2025-11-24
 
 ### Added
 - CREDITS.md included in release package

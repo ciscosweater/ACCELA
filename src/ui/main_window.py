@@ -7,7 +7,7 @@ import sys
 from utils.i18n import tr
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -131,10 +131,27 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle(tr("MainWindow", "Bifrost"))
         self.setGeometry(100, 100, 800, 600)
+
+        # Get the bifrost logo path - go up from ui/ to src/
+        ui_dir = os.path.dirname(os.path.abspath(__file__))
+        src_dir = os.path.dirname(ui_dir)
+        icon_path = os.path.join(src_dir, "assets", "images", "bifrost.png")
+
+        # Set window icon
+        try:
+            if os.path.exists(icon_path):
+                self.setWindowIcon(QIcon(icon_path))
+        except Exception as e:
+            logger.warning(f"Could not set window icon: {e}")
+
+        # Load main pixmap for display
         self.settings = get_settings()
         self.game_data = None
         self.speed_monitor_task = None
-        self.main_pixmap = QPixmap("bifrost.png")
+        if os.path.exists(icon_path):
+            self.main_pixmap = QPixmap(icon_path)
+        else:
+            self.main_pixmap = QPixmap("bifrost.png")
         self.current_pixmap = None
         self.depot_dialog = None
         self.current_dest_path = None

@@ -11,11 +11,14 @@ from utils.logger import setup_logging, get_internationalized_logger
 from utils.settings import get_settings
 
 # Add the project root to the Python path. This allows absolute imports
-# (e.g., 'from core.tasks...') to work from any submodule.
+# (e.g., 'from src.core.tasks...') to work from any submodule.
 # This must be done BEFORE importing any project modules.
-project_root = os.path.abspath(os.path.dirname(__file__))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+
+# Get the directory where main.py is located (src/)
+main_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Import i18n after path setup
 try:
@@ -52,7 +55,8 @@ def main():
     # Set application icon
     try:
         from PyQt6.QtGui import QIcon
-        app.setWindowIcon(QIcon("bifrost.png"))
+        icon_path = os.path.join(main_dir, "assets", "images", "bifrost.png")
+        app.setWindowIcon(QIcon(icon_path))
     except Exception as e:
         print(f"Warning: Could not set application icon: {e}")
 
@@ -66,7 +70,7 @@ def main():
 
     # --- MODIFICATION START ---
     # Load MotivaSans font
-    motiva_path = "assets/fonts/MotivaSansRegular.woff.ttf"
+    motiva_path = os.path.join(main_dir, "assets", "fonts", "MotivaSansRegular.woff.ttf")
     motiva_id = QFontDatabase.addApplicationFont(motiva_path)
 
     font_loaded = False
