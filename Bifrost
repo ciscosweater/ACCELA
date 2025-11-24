@@ -108,7 +108,7 @@ main() {
         if [ -f "$ZIP_FILE" ] && [[ "$ZIP_FILE" == *.zip ]]; then
             print_status "Processing zip file: $ZIP_FILE"
             play_sound "$SCRIPT_DIR/audio/sfx/etw.wav"
-            python "$SCRIPT_DIR/main.py" "$ZIP_FILE"
+            python "$SCRIPT_DIR/src/main.py" "$ZIP_FILE"
             play_sound "$SCRIPT_DIR/audio/sfx/lal.wav"
         else
             print_error "File '$ZIP_FILE' does not exist or is not a zip file."
@@ -119,7 +119,7 @@ main() {
         # No zip file provided, run normally
         print_status "Starting Bifrost GUI..."
         play_sound "$SCRIPT_DIR/audio/sfx/etw.wav"
-        python "$SCRIPT_DIR/main.py"
+        python "$SCRIPT_DIR/src/main.py"
         play_sound "$SCRIPT_DIR/audio/sfx/lal.wav"
     fi
 }

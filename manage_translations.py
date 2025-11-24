@@ -15,7 +15,7 @@ project_root = os.path.abspath(os.path.dirname(__file__))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from utils.i18n import get_i18n_manager
+from src.utils.i18n import get_i18n_manager
 
 
 def find_all_tr_calls() -> Set[str]:
@@ -43,7 +43,7 @@ def find_all_tr_calls() -> Set[str]:
 
 def load_translations(lang_code: str) -> Dict[str, str]:
     """Load translations from JSON file"""
-    lang_file = f"translations/{lang_code}.json"
+    lang_file = f"src/translations/{lang_code}.json"
     if os.path.exists(lang_file):
         with open(lang_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -53,7 +53,7 @@ def load_translations(lang_code: str) -> Dict[str, str]:
 
 def save_translations(lang_code: str, translations: Dict[str, str]):
     """Save translations to JSON file"""
-    lang_file = f"translations/{lang_code}.json"
+    lang_file = f"src/translations/{lang_code}.json"
     data = {"translations": translations}
     
     with open(lang_file, 'w', encoding='utf-8') as f:

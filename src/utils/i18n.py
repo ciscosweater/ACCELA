@@ -17,7 +17,7 @@ class SimpleI18n:
     def __init__(self):
         self.current_language = "en"
         self.available_languages = {"en": "English", "pt_BR": "Português (Brasil)"}
-        self.translations_dir = "translations"
+        self.translations_dir = "src/translations"
         self.translations: Dict[str, str] = {}
         self.load_translations()
 
